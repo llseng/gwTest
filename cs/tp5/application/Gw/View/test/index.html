@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+		<title>聊天DEMO</title>
+		<link rel="stylesheet" type="text/css" href="test.css"/>
+		<script type='text/javascript' src='http://libs.baidu.com/jquery/2.1.4/jquery.min.js'></script>
+	</head>
+	<body>
+		<div class="main">
+			<div class="view">
+			
+			</div>
+			<div class="enter">
+				<input class="contents" type="text" value=""/>
+				<input class="btn" type="button" value="发布"/>
+			</div>
+		</div>
+		<iframe style="display:none;" src=""></iframe>
+	</body>
+	<script type="text/javascript">
+
+		(function($){
+			
+			//配置信息
+			$.config = {
+				"url":"127.0.0.1:1997",
+			}
+
+			//用户数据
+			$.data = {}; //数据发送时合并
+			$.setData = function (data)
+			{
+				this.data = Object.assign(this.data,data);
+				return this;
+			}
+
+			//socket连接状态 属性
+			$.readyError = ['连接尚未建立。','连接已建立，可以进行通信。','连接正在进行关闭。','连接已经关闭或者连接不能打开。'];
+
+			//新增|修改 配置信息
+			$.init = function(config)
+			{
+				this.config = Object.assign(this.config,config);
+				return this;
+			}
+
+			$.connect = function()
+			{
+				var protocol = window.location.protocol == "http:" ? "ws:" : "wss:";
+
+				this.host = protocol + "//" + this.config.url;
+
+				window.WebSocket = window.WebSocket || window.MozWebSocket;
+
+				if(!window.WebSocket)
+				{
+					this.error("Error: WebSocket is not supported .");
+					return ;
+				}
+
+				this.socket = new WebSocket(this.host);
+
+				//连接成功
+				this.socket.onopen = function (e)
+				{
+					$.onopen(e);
+				}
+				
+				//接受信息
+				this.socket.onmessage = function (e)
+				{
+					//数据处理
+					try{
+						json = JSON.parse(e.data);
+					}catch(err){
+						console.log(err);
+						console.log(e);
+						console.log("SOCKET MESSAGE DATA ERROR");
+						return false;
+					}
+
+					$.onmessage(json);
+				}
+
+				//连接断开
+				this.socket.onclose = function (e)
+				{
+					$.onclose(e);
+					this.socket = null;//清理连接;
+				}
+
+				//连接错误
+				this.socket.onerror = function (err)
+				{
+					$.error(err);
+				}
+
+			}
+
+			//
+			$.error = function (err)
+			{
+				this.onerror(err);
+			}
+
+			//发送信息
+			$.send = function (e)
+			{
+				console.log(e);
+				if(!this.socket)
+				{
+					//this.error("please connect to the server first !!!");
+					this.error("请先连接到服务器");
+					return false;
+				}
+				
+				if(this.socket.readyState != 1)
+				{
+					this.error(this.readyError[this.socket.readyState]);
+					return false;
+				}
+
+				//是否是json数据
+				if(typeof e != "object")
+				{
+					try{
+						e = JSON.parse(e);
+					}catch(err){
+						this.error(err);
+						return false;
+					}
+				}
+
+				var sendData = Object.assign(e,this.data);
+				console.log(sendData);
+
+				this.socket.send(JSON.stringify(sendData));
+
+				console.log(this);
+				//this.socket.send(e);
+			}
+
+			//断开连接
+			$.close = function(e)
+			{
+				if(this.socket != undefined && this.socket != null)
+				{
+					this.socket.close();
+				}
+
+				this.error("连接不可用/已断开");
+
+				//return false;
+			}
+
+			//连接成功 回调
+			$.onopen = function (e)
+			{
+				console.log(e);
+			}
+
+			//接收信息 回调
+			$.onmessage = function (e)
+			{
+				console.log(e);
+			}
+
+			//连接断开 回调
+			$.onclose = function (e)
+			{
+				console.log(e);
+				this.error("断开连接");
+			}
+
+			//连接错误 回调
+			$.onerror = function (e)
+			{
+				console.log(e);
+				alert(e);
+			}
+
+			//心跳检测
+			$.timPing = function(){
+				console.log(this);
+				if(!this.socket) return ;
+				this.socket.send('{"type":"ping"}');
+			}
+			//心跳检测 定时器
+			$.timRun = function(){
+				console.log(this);
+				this.tim = setInterval(function(){
+					$.timPing();
+				},50000);
+			}
+
+		})(ws = {});
+
+		$(function(){
+			console.log('jq ok ');
+		});
+		
+		var user = {"uid":1};
+
+		ws.setData(user);
+
+		//用户登录
+		ws.login = function (json)
+		{
+			console.log(json);
+			
+			this.data['connect_id'] = json['connect_id'];
+			this.data['client_id'] = json['client_id'];
+
+			this.send({type:"login"});
+
+		}
+
+		//接收信息 回调
+		ws.onmessage = function (json)
+		{
+			console.log(json);
+
+			switch(json['type'])
+			{
+				case 'login':
+					console.log('login');
+					this.login(json);
+				break;
+
+				default:
+				break;
+			}
+		}
+
+		ws.timRun();
+		
+
+	</script>
+</html>

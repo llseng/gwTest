@@ -1,0 +1,2 @@
+
+RewriteRule ^(.*)$ index.php [L,E=PATH_INFO:$1]
