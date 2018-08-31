@@ -72,6 +72,8 @@ return $validateCommon =
 
         'order_id'      => ['order_id' => 'number'], //订单ID（主键ID）
 
+        'cond'      => ['cond' => 'require'], //好友查询条件
+
     ],
 
     'errMsg' => [
@@ -221,6 +223,10 @@ return $validateCommon =
 
         'order_id' => [
             'order_id.number' => '订单ID必须为数值'
+        ],
+
+        'cond' => [
+            'cond.require' => '条件不可为空'
         ]
 
     ]
