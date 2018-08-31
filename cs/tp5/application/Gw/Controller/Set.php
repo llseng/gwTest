@@ -52,7 +52,8 @@ class Set extends ApiController
         if($uid && Gateway::isUidOnline($uid))
             return $uid;
         
-        Session::set(null);
+        //删除当前所有session
+        Session::clear(null);
         
         if($r) return false;
         exit(self::returnError('未登录'));
@@ -171,6 +172,16 @@ class Set extends ApiController
         if($post['friend_id'] == $uid) 
             exit(self::returnError("不可添加自己"));
 
+        if(self::doQuery(
+            $command = "find",
+            $db = "friend",
+            $map = [
+                'uid' => $uid,
+                'friend_id'=> $post['friend_id']
+            ],
+            $param = "id"
+        )) exit(self::returnError("用户已是您的好友"));
+
         //获取用户信息
         $res = self::doQuery(
             $command = "find",
@@ -191,7 +202,8 @@ class Set extends ApiController
             $db = "add_friend",
             $map = [
                 'uid' => $uid,
-                'to_uid' => $post['friend_id']
+                'to_uid' => $post['friend_id'],
+                'status' => 0
             ],
             $param = "id"
         )) {
@@ -230,6 +242,34 @@ class Set extends ApiController
     }
 
     /**
+     * 获取所有好友请求
+     */
+    public function getAddFriend()
+    {
+        $uid = Session::get("uid");
+
+        //$post = self::getPost(['order_id']);
+
+        $list = self::doQuery(
+            $command = "select",
+            $db = "add_friend",
+            $map = [
+                'to_uid' => $uid,
+                //'status' => 0,
+            ],
+            $param = 'id,uid,intro,addtime',
+            $join = '',
+            $link = '',
+            $order = 'addtime',
+            $sort = "desc"
+        );
+
+        if(!$list) exit(self::returnSuccess([],"无好友请求"));
+
+        exit(self::returnSuccess($list,'获取成功'));
+    }
+
+    /**
      * 同意添加好友
      */
     public function verifyAddFriend()
@@ -239,6 +279,7 @@ class Set extends ApiController
 
         $uid = Session::get("uid");
 
+        //请求记录
         $res = self::doQuery(
             $command = 'find',
             $db = 'add_friend',
@@ -260,9 +301,8 @@ class Set extends ApiController
         $result = self::setField(
             $command = "update",
             $db = "add_friend",
-            $map = '',
+            $map = "(uid=".$post['friend_id']." and to_uid=".$uid.") OR (uid=".$uid." and to_uid=".$post['friend_id'].")",
             $param = [
-                'id' => $post['order_id'],
                 'state' => $post['state'] ? 1 : 0,
                 'status' => 1,
                 'uptime' => $_SERVER['REQUEST_TIME']
@@ -300,7 +340,23 @@ class Set extends ApiController
 
     public function test()
     {
-        echo Gateway::isUidOnline('2');die;
-        Gateway::sendToUid(1,json_encode(['type'=>'add_friend','uid'=>2,'nickname'=>session::get('nickname'),'intro'=>$post['intro']]));
+        $uid = session::get("uid");
+        $friend = self::doQuery(
+            $command = "select",
+            $db = "friend",
+            $map = [
+                "uid" => $uid,
+            ],
+            $param = "friend_id,class_id,nickname,name",
+            $join = "im_users",
+            $link = "im_friend.friend_id=im_users.id",
+            $order = "name",
+            $sort = "desc"
+        );
+
+        var_dump($friend);
+
+        var_dump(session::get());
+        var_dump($_SERVER);
     }
 }

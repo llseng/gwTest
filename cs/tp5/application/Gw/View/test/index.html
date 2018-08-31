@@ -233,6 +233,31 @@
 			}
 		}
 
+		//http请求
+		ws.request = function (obj) {
+			if(!obj.type) obj.type = "post";
+			var method = obj.type.toLowerCase() == 'get' ? "get" : "post";
+			var success = obj.success ? obj.success : function(data){
+				try{
+					var json = JSON.parse(data);
+					console.log(json);
+				}catch(err){
+					console.log(err);
+					console.log(data);
+				}
+			};
+			var url;
+			if(obj.url.match(/http(s?):\/\//ig)) 
+			{
+				url = obj.url;
+			}else{
+				url = window.location.origin +'/'+ obj.url;
+			}
+
+			$.ajax({'type':method,'url':url,'data':obj.data,'success':success});
+
+		};
+
 		ws.timRun();
 		
 
