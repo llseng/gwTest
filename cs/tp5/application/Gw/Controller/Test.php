@@ -42,6 +42,23 @@ class Test extends ApiController
 		//Gateway::bindUid($request["client_id"],$request["uid"]);
 		
 	}
+
+	//
+	public function say()
+	{
+		$post = self::getPost(['type','to_group','to_uid','content']);
+
+		switch($post['type'])
+		{
+			case "say":
+				if(!$psot['to_uid'] || $post['content']) return false;
+
+				if(!Gateway::isUidOnline($post['to_uid'])) return false;
+
+			break;
+		}
+
+	}
 	
 	//
 	public function sign_out()
