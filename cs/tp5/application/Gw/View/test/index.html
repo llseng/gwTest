@@ -217,6 +217,11 @@
 
 		}
 
+		ws.news = function (json)
+		{
+			console.log(json);
+		}
+
 		//接收信息 回调
 		ws.onmessage = function (json)
 		{
@@ -230,7 +235,13 @@
 					this.login(json);
 				break;
 
+				case "news":
+					console.log("news");
+					this.news(json);
+				break;
+
 				default:
+					console.log(json);
 				break;
 			}
 		}

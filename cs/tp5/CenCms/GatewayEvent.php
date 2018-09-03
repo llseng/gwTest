@@ -1,9 +1,11 @@
 <?php
 namespace CenCMS;
 
+use \Session;
 use CenCMS\ApiController;
 use Workerman\Lib\Timer;
 use \GatewayWorker\Lib\Gateway;
+use app\gw\logic\SayLogic;
 
 class GatewayEvent
 {
@@ -82,8 +84,12 @@ class GatewayEvent
 
 			switch($json_data['type'])
 			{
+				//单聊
 				case "say":
-					Gateway::sendToclient($client_id,self::Api()->returnSuccess([],$message));
+					//聊天逻辑层
+					$SayLogic = new SayLogic($_SESSION['uid'],$_SESSION['nickname']);
+					
+					Gateway::sendToclient($client_id,$SayLogic->say($json_data));
 				break;
 
 				default:

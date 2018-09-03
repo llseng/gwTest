@@ -6,6 +6,7 @@ use CenCMS\ApiController;
 use GatewayClient\Gateway;
 use app\gw\logic\SetLogic;
 use app\gw\logic\GetLogic;
+use app\gw\logic\SayLogic;
 
 class Set extends ApiController
 {
@@ -42,8 +43,10 @@ class Set extends ApiController
         parent::__construct();
 
         $this->action = request()->action();
+
         //无需前置的方法 
         $this->front = ['userlogin'];
+
         //前置方法
         if(!in_array(strtolower($this->action),$this->front))
         {
@@ -76,11 +79,6 @@ class Set extends ApiController
         $isLogin = self::isLogin(1);
         if($isLogin !== false)
             return exit(self::returnSuccess(['uid'=>$isLogin,'nickname'=>session::get("nickname")],"已登录"));
-        /*
-        $uid = Session::get('uid');
-        if($uid && Gateway::isUidOnline($uid))
-            return Gateway::sendToUid($uid,self::returnSuccess(['uid'=>$uid,'nickname'=>Session::get("nickname")],"已登录"));
-        */
         
         $res = self::doQuery(
             $command = "find",
@@ -115,7 +113,14 @@ class Set extends ApiController
             $success = self::returnSuccess($uSession,"登录成功");
             Gateway::sendToUid($res['id'],$success);
 
+            //数据获取逻辑层
+            $GetLogic = new GetLogic();
+            //未读信息
+            $news = $GetLogic->unreadMessage($res['id']);
             //用户未读消息推送
+            Gateway::sendToUid($res['id'],self::returnSuccess(SayLogic::sayData("news",$news),"有未读信息"));
+
+
         }else{
             $error = self::returnError("登录验证失败");
 
@@ -135,15 +140,10 @@ class Set extends ApiController
         if($post['friend_id'] == $this->uid) 
             exit(self::returnError("不可添加自己"));
 
-        if(self::doQuery(
-            $command = "find",
-            $db = "friend",
-            $map = [
-                'uid' => $this->uid,
-                'friend_id'=> $post['friend_id']
-            ],
-            $param = "id"
-        )) exit(self::returnError("用户已是您的好友"));
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+
+        if($getLogic->ifFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
 
         //获取用户信息
         $res = self::doQuery(
@@ -197,7 +197,9 @@ class Set extends ApiController
         //用户IM在线 推送信息
         if(Gateway::isUidOnline($post['friend_id']))
         {
-            Gateway::sendToUid($post['friend_id'],json_encode(['type'=>'add_friend','uid'=>$this->uid,'nickname'=>session::get('nickname'),'intro'=>$post['intro']]));
+            Gateway::sendToUid($post['friend_id'],self::returnSuccess(SayLogic::sayData("req_add_friend",[
+                ['uid'=>$this->uid,'nickname'=>session::get('nickname'),'intro'=>$post['intro']]
+            ])));
         }
 
         exit(self::returnSuccess([],"请求成功"));
@@ -268,9 +270,55 @@ class Set extends ApiController
 
         if(!$addFriend) exit(self::returnError("操作失败.."));
 
-        if(Gateway::isUidOnline($res['uid'])) Gateway::sendToUid($res['uid'],json_encode(['type'=>'add_friend','uid'=>$this->uid,'nickname'=>session::get('nickname')]));
+        //添加好友成功 给对方推送提示信息
+        if(Gateway::isUidOnline($res['uid'])) Gateway::sendToUid($res['uid'],self::returnSuccess(SayLogic::sayData("add_friend",[
+            ['uid'=>$this->uid,'nickname'=>session::get('nickname')]
+        ])));
 
         exit(self::returnSuccess([],"操作成功"));
+    }
+
+    //修改好友备注/分组
+    public function editFriendInfo()
+    {
+        $post = self::getPost(['friend_id','class_id','name']);
+
+        $post['friend_id'] = (int)$post['friend_id'];
+        $post['class_id'] = (int)$post['class_id'];
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        if(!$GetLogic->getFriend($this->uid,$post['friend_id']))
+        {
+            exit(self::returnError("非好友,不可操作"));
+        }
+
+        if($post['class_id'] && !$GetLogic->getClass($this->uid,$post['class_id']))
+        {
+            exit(self::returnError("没有当前分组"));
+        }
+
+        //信息
+        $info = [
+            'class_id' => $post['class_id'],
+        ];
+        if($post['name']) $info['name'] = $post['name'];
+
+        //保存
+        $result = self::setField(
+            $command = "update",
+            $db = "friend",
+            $map = [
+                'uid' => $this->uid,
+                'friend_id' => $post['friend_id']
+            ],
+            $param = $info
+        );
+
+        if(!$result) return self::returnError("修改失败");
+
+        return self::returnSuccess([],"修改成功");
+
     }
 
     public function test()

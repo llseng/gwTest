@@ -7,7 +7,16 @@ use GatewayClient\Gateway;
 
 class SayLogic extends ApiController
 {
+    public function __construct($uid,$nickname)
+    {
+        parent::__construct();
+
+        //为了兼容 与 Gateway服务 （Gateway 里用 session::get("uid") 错误）
+        $this->uid = $uid;
+        $this->nickname = $nickname;
+    }
     
+    //用户私聊
     public function say($post)
     {
         
@@ -17,7 +26,7 @@ class SayLogic extends ApiController
             $command = "find",
             $db = "friend",
             $map = [
-                'uid' => session::get("uid"),
+                'uid' => $this->uid,
                 'friend_id' => $post['to_uid']
             ],
             $param = "id"
@@ -26,15 +35,16 @@ class SayLogic extends ApiController
         if(!$ifFriend) return self::returnError("非好友,不可聊天");
 
         $info = [
-            'uid' => Session::get('uid'),
+            'uid' => $this->uid,
             'to_uid' => $post['to_uid'],
             'content' => $post['content'],
-            'addtime' => $_SERVER['REQUEST_TIME']
+            //Gateway服务 无 $_SERVER['REQUEST_TIME'] 数据
+            'addtime' => time()
         ];
 
         //用户不在线
         if(!Gateway::isUidOnline($post['to_uid'])) {
-            
+            //保存聊天记录
             $save = self::setField(
                 $command = "insert",
                 $db = "message",
@@ -47,9 +57,10 @@ class SayLogic extends ApiController
             return self::returnSuccess([],"发送成功");
         }
 
+        //用户在线 信息已读
         $info['status'] = 1;
 
-        
+        //保存聊天记录
         $save = self::setField(
             $command = "insert",
             $db = "message",
@@ -58,10 +69,23 @@ class SayLogic extends ApiController
         );
 
         if(!$save) return self::returnError("发送失败");
+        
+        Gateway::sendToUid($post['to_uid'],self::returnSuccess(self::sayData("news",[["uid"=>$this->uid,"nickname"=>$this->nickname,"content"=>$post['content']]])));
 
-        Gateway::sendToUid($post['to_uid'],self::returnSuccess(["type"=>"say","uid"=>session::get('uid'),"nickname"=>session::get("nickname")],$post['content']));
+        return self::returnSuccess([],"发送成功。");
+    }
 
-        return self::returnSuccess([],"发送成功");
+    /**
+     * type 值简介
+     */
+    public static function sayData($type,$message)
+    {
+        $data = [
+            "type" => $type,
+            "list" => $message
+        ];
+
+        return $data;
     }
 
 }

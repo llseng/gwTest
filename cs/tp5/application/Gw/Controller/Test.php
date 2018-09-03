@@ -82,9 +82,7 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		
-		$GetLogic = new GetLogic();
-		var_dump($GetLogic->unreadMessage(2));
+		var_dump($_SESSION);
 	}
 	
 }

@@ -5,7 +5,8 @@ use CenCMS\ApiController;
 
 class GetLogic extends ApiController
 {
-    //用户未读消息
+
+    //用户私聊未读消息
     public function unreadMessage($uid)
     {
         return self::doQuery(
@@ -41,6 +42,20 @@ class GetLogic extends ApiController
         );
     }
 
+    //获取好友
+    public function getFriend($uid,$friend_id)
+    {
+        return self::doQuery(
+            $command = "find",
+            $db = "friend",
+            $map = [
+                'uid' => $uid,
+                'friend_id'=> $friend_id
+            ],
+            $param = "friend_id,class_id,name"
+        );
+    }
+
     //获取好友列表
     public function friendList($uid)
     {
@@ -58,6 +73,21 @@ class GetLogic extends ApiController
             $sort = "desc"
         );
     }
+
+    //是否有分组
+    public function getClass($uid,$class_id)
+    {
+        return self::doQuery(
+            $command = "select",
+            $db = "friend_class",
+            $map = [
+                'uid' => $uid,
+                'class_id'=>$class_id
+            ],
+            $param = "class_id,name,addtime"
+        );
+    }
+
 
     //获取好友分组
     public function classList($uid)
