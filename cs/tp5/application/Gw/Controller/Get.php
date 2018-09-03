@@ -15,10 +15,14 @@ class Get extends ApiController
     //用户ID
     public $uid;
 
+    public $GetLogic;
+
     //构造函数
     public function __construct()
     {
         parent::__construct();
+
+        $this->GetLogic = new GetLogic();
 
         //验证登录
         $this->isLogin();
@@ -83,20 +87,8 @@ class Get extends ApiController
      */
     public function addFriend()
     {
-
-        $list = self::doQuery(
-            $command = "select",
-            $db = "add_friend",
-            $map = [
-                'to_uid' => $this->uid,
-                //'status' => 0,
-            ],
-            $param = 'id,uid,intro,addtime',
-            $join = '',
-            $link = '',
-            $order = 'addtime',
-            $sort = "desc"
-        );
+        //获取未处理请求
+        $list = $this->GetLogic->addFriend($this->uid);
 
         if(!$list) return self::returnSuccess([],"无好友请求");
 
@@ -106,34 +98,19 @@ class Get extends ApiController
     //获取好友列表
     public function friendList()
     {
-        $friendList = self::doQuery(
-            $command = "select",
-            $db = "friend",
-            $map = [
-                "uid" => $this->uid,
-            ],
-            $param = "friend_id,class_id,nickname,name",
-            $join = "im_users",
-            $link = "im_friend.friend_id=im_users.id",
-            $order = "name",
-            $sort = "desc"
-        );
+
+        $friendList =  $this->GetLogic->friendList($this->uid);
 
         if(!$friendList) return self::returnSuccess([],"没有好友,快去添加吧！");
 
-        return self::returnSuccess($friendList,"获取成功");
+        return self::returnSuccess(["list"=>$friendList],"获取成功");
 
     }
 
     //获取分组
     public function classList()
     {
-        $classList = self::doQuery(
-            $command = "select",
-            $db = "friend_class",
-            $map = ['uid' => $this->uid],
-            $param = "class_id,name,addtime"
-        );
+        $classList = $this->GetLogic->classList($this->uid);
 
         if($classList) return self::returnSuccess([],'没有分组,快去添加吧！');
 
@@ -143,30 +120,14 @@ class Get extends ApiController
     //获取 三维分组 列表
     public function classFriend()
     {
-        $friendList = self::doQuery(
-            $command = "select",
-            $db = "friend",
-            $map = [
-                "uid" => $this->uid,
-            ],
-            $param = "friend_id,class_id,nickname,name",
-            $join = "im_users",
-            $link = "im_friend.friend_id=im_users.id",
-            $order = "name",
-            $sort = "desc"
-        );
+        $friendList = $this->GetLogic->friendList($this->uid);
 
-        $classList = self::doQuery(
-            $command = "select",
-            $db = "friend_class",
-            $map = ['uid' => $this->uid],
-            $param = "class_id,name,addtime"
-        );
+        $classList = $this->GetLogic->classList($this->uid);
 
         //排序 好友入栈
         $classFriend = GetLogic::classSort($classList,$friendList);
 
-        return self::returnSuccess($classFriend);
+        return self::returnSuccess(["classFriend" => $classFriend]);
 
     }
 

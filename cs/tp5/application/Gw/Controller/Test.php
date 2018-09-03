@@ -5,12 +5,20 @@ use GatewayClient\Gateway;
 use CenCMS\ApiController;
 use think\facade\Session;
 use think\Container;
+use app\gw\logic\GetLogic;
+
+use app\gw\logic\SayLogic;
 
 class Test extends ApiController
 {
+
+	//用户聊天逻辑层
+	public $SayLogic;
 	
 	public function __construct()
 	{
+		parent::__construct();
+
 		Gateway::$registerAddress = '127.0.0.1:9527';
 		
 		/*
@@ -24,6 +32,8 @@ class Test extends ApiController
 
 		var_dump($gatewayServer, $erron, $errstr);
 		*/
+
+		$this->SayLogic = new SayLogic();
 
 	}
 	
@@ -51,7 +61,11 @@ class Test extends ApiController
 		switch($post['type'])
 		{
 			case "say":
-				if(!$psot['to_uid'] || $post['content']) return false;
+				return $this->SayLogic->say($post);
+
+			break;
+			case "group_say":
+				if(!$psot['to_group'] || !$post['content']) return false;
 
 				if(!Gateway::isUidOnline($post['to_uid'])) return false;
 
@@ -68,7 +82,9 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		Gateway::sendToUid(1,"99999999999999999999");
+		
+		$GetLogic = new GetLogic();
+		var_dump($GetLogic->unreadMessage(2));
 	}
 	
 }

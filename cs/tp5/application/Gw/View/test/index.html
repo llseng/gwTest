@@ -212,7 +212,8 @@
 			this.data['connect_id'] = json['connect_id'];
 			this.data['client_id'] = json['client_id'];
 
-			this.send({type:"login"});
+			//this.send({type:"login"});
+			this.request({'url':"gw/set/userLogin","data":this.data});
 
 		}
 
@@ -220,6 +221,7 @@
 		ws.onmessage = function (json)
 		{
 			console.log(json);
+			if(!json.status) this.error(json.data);
 
 			switch(json['type'])
 			{

@@ -82,53 +82,6 @@ class GatewayEvent
 
 			switch($json_data['type'])
 			{
-				//用户登录
-				case "login":
-					if(!$json_data['uid']) return false;
-
-					$res = self::Api()->doQuery(
-						$command = "find",
-						$db = "users",
-						$map = [
-							"id" => $json_data['uid'],
-						],
-						$param = "id,nickname"
-					);
-					/*
-					if($json_data['username'] && $json_data['password']) return;//Gateway::closeClient($client_id);
-
-					$res = self::doQuery(
-						$command = "find",
-						$db = "users",
-						$map = [
-							"username" => $json_data['username'],
-							"password" => md5($json_data['password']),
-						],
-						$param = "id,nickname"
-					);
-					*/
-					
-					if($res)
-					{
-						$_SESSION['uid'] = $res['id'];
-						$_SESSION['nickname'] = $res['nickname'];
-						var_export($res);
-
-						$retData = [
-							"uid" => $res['id'],
-							"nickname" => $res['nickname'],
-						];
-
-						//连接绑定用户ID
-						Gateway::bindUid($client_id,$res['id']);
-						Gateway::sendToClient($client_id,self::Api()->returnSuccess($retData,"登陆成功"));
-						Gateway::sendToUid($res['id'],self::Api()->returnSuccess($retData,"登陆成功"));
-					}else{
-						//登录信息错误
-						//Gateway::closeClient($client_id);
-					}
-				break;
-
 				case "say":
 					Gateway::sendToclient($client_id,self::Api()->returnSuccess([],$message));
 				break;

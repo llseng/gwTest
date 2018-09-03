@@ -163,7 +163,7 @@ class ApiController
     protected function getPost($params){
         
 		//$post = json_decode(file_get_contents("php://input"),true);
-		$post = input();
+		$post = input("post.");
 		
         if (!$params) {
         	// 如果没有传入 params，则默认检测所有 POST 中的 keys

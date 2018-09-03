@@ -5,6 +5,7 @@ use \Session;
 use CenCMS\ApiController;
 use GatewayClient\Gateway;
 use app\gw\logic\SetLogic;
+use app\gw\logic\GetLogic;
 
 class Set extends ApiController
 {
@@ -93,7 +94,7 @@ class Set extends ApiController
         //用户不在线
         if(!Gateway::isOnline($post['connect_id']))
         {
-            echo self::returnError("连接断开");
+            echo self::returnError("IM连接断开,登录失败");
         }
 
         if($res)
@@ -111,58 +112,16 @@ class Set extends ApiController
             Session::set('nickname',$res['nickname']);
             Session::set('uid',$res['id']);
             
-            Gateway::sendToUid($res['id'].'',self::returnSuccess($uSession,"登录成功"));
+            $success = self::returnSuccess($uSession,"登录成功");
+            Gateway::sendToUid($res['id'],$success);
 
+            //用户未读消息推送
         }else{
-            
-            Gateway::sendToCLient($post['connect_id'],self::returnError("登录验证失败"));
+            $error = self::returnError("登录验证失败");
+
+            Gateway::sendToCLient($post['connect_id'],$error);
             Gateway::closeClient($post['connect_id']);
         }
-
-
-        /*
-        $post = self::getPost(['username','password','client_id']);
-
-        $password = md5($post['password']);
-
-        $res = self::doQuery(
-            $command = "find",
-            $db = 'users',
-            $map = [
-                'username' => $post['username'],
-                'password' => $password
-            ],
-            $param = 'id,nickname'
-        );
-
-        //用户不在线
-        if(!Gateway::isOnline($post['client_id']))
-        {
-            echo self::returnError("连接断开");
-        }
-
-        if($res)
-        {
-
-            //用户连接 绑定 用户ID & 用户数据保存
-            Gateway::bindUid($post['client_id'],$res['id']);
-            $uSession = [
-                'uid' => $res['uid'],
-                'nickname' => $res['nickname']
-            ];
-            Gateway::updateSesssion($post['client_id'],$uSession);
-
-            //保存当前用户数据
-            session::set('nickname',$res['nickname']);
-            session::set('uid',$res['id']);
-
-            Gateway::sendToUid($res['id'],self::returnSuccess($uSession,"登录成功"));
-
-        }else{
-            
-            Gateway::sendToCLient($post['client_id'],self::returnError("登录失败"));
-        }
-        */
 
     }
 
