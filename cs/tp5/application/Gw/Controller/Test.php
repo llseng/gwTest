@@ -20,20 +20,6 @@ class Test extends ApiController
 		parent::__construct();
 
 		Gateway::$registerAddress = '127.0.0.1:9527';
-		
-		/*
-        try{
-            $gatewayServer = stream_socket_client("tcp://" . Gateway::$registerAddress, $erron, $errstr, 3);
-        }catch(\Exception $e) {
-			//var_dump($gatewayServer, $erron, $errstr);
-            exit("Service not open");
-            return false;
-        }
-
-		var_dump($gatewayServer, $erron, $errstr);
-		*/
-
-		$this->SayLogic = new SayLogic();
 
 	}
 	
@@ -57,7 +43,7 @@ class Test extends ApiController
 	public function say()
 	{
 		$post = self::getPost(['type','to_group','to_uid','content']);
-
+		$this->SayLogic = new SayLogic(Session::get('uid'),Session::get('nickname'));
 		switch($post['type'])
 		{
 			case "say":

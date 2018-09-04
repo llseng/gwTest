@@ -3,14 +3,14 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
 		<title>聊天DEMO</title>
-		<link rel="stylesheet" type="text/css" href="test.css"/>
+		<style>
+			.view { width:180px;border:1px solid red;}
+		</style>
 		<script type='text/javascript' src='http://libs.baidu.com/jquery/2.1.4/jquery.min.js'></script>
 	</head>
 	<body>
 		<div class="main">
-			<div class="view">
-			
-			</div>
+
 			<div class="enter">
 				<input class="contents" type="text" value=""/>
 				<input class="btn" type="button" value="发布"/>
@@ -213,13 +213,55 @@
 			this.data['client_id'] = json['client_id'];
 
 			//this.send({type:"login"});
-			this.request({'url':"gw/set/userLogin","data":this.data});
+			this.request({'url':"gw/set/userLogin","data":this.data,success:this.getFriend});
 
 		}
 
+		//获取好友
+		ws.getFriend = function (e)
+		{
+			console.log(this);
+			console.log(e);
+			ws.request({'url':'gw/get/friendList',success:function(e){
+				console.log(e);
+
+				e = JSON.parse(e);
+				console.log(e);
+
+				if(!e.list) return ws.error(e.data);
+
+				var list = {};
+				for(x in e.list)
+				{
+					list[e.list[x]['friend_id']] = e.list[x];
+				}
+				
+				ws.data['friend'] = list;
+
+				showFriend(list);
+				
+				//获取未读消息
+				ws.request({"url":"gw/set/messagePush"});
+			}});
+		}
+
+		//用户新消息
 		ws.news = function (json)
 		{
 			console.log(json);
+			if(json.list)
+			{
+				for(x in json.list)
+				{
+					var temp = json.list[x];
+					console.log(temp);
+					var dom = document.getElementById(temp['uid']);
+					console.log(dom);
+					var p = document.createElement("p");
+					p.innerHTML = temp['uid'] +"_"+temp['nickname']+"_"+temp['username']+"::"+temp['content'];
+					dom.appendChild(p);
+				}
+			}
 		}
 
 		//接收信息 回调
@@ -272,6 +314,39 @@
 		};
 
 		ws.timRun();
+
+		//=====================
+		var main = document.querySelector(".main");
+
+		var enter = document.querySelector(".enter");
+
+		//渲染好友对话框
+		function firendView(friendData)
+		{
+			console.log(friendData);
+			if(!friendData) return ;
+			var view = document.createElement("div");
+			view.className = "view";
+			view.id = friendData.friend_id;
+
+			var friend = document.createElement("div");
+			friend.className = "friend";
+			
+			friend.innerHTML = friendData.friend_id + '_' + friendData.nickname + "_" + friendData.name;
+
+			view.appendChild(friend);
+			
+			main.insertBefore(view,enter);
+		}
+		
+		//好友列表
+		function showFriend(friendList)
+		{
+			for(x in friendList)
+			{
+				firendView(friendList[x]);
+			}
+		}
 		
 
 	</script>

@@ -113,27 +113,35 @@ class Set extends ApiController
             $success = self::returnSuccess($uSession,"登录成功");
             Gateway::sendToUid($res['id'],$success);
 
-            //数据获取逻辑层
-            $GetLogic = new GetLogic();
-            //未读信息
-            $news = $GetLogic->unreadMessage($res['id']);
-            //用户未读消息推送
-            Gateway::sendToUid($res['id'],self::returnSuccess(SayLogic::sayData("news",$news),"有未读信息"));
-
+            exit($success);
 
         }else{
             $error = self::returnError("登录验证失败");
 
             Gateway::sendToCLient($post['connect_id'],$error);
             Gateway::closeClient($post['connect_id']);
+
+            exit($error);
         }
 
+    }
+
+    //未读消息消息推送
+    public function messagePush()
+    {
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //未读私聊信息
+        $news = $GetLogic->unreadMessage($this->uid);
+        //用户未读消息推送
+        Gateway::sendToUid($this->uid,self::returnSuccess(SayLogic::sayData("news",$news),"有未读信息"));
+
+        exit(self::returnSuccess([],"成功"));
     }
 
     //请求添加好友
     public function addFriend()
     {
-        //$uid = Session::get("uid");
         
         $post = self::getPost(['friend_id','intro']);
 
@@ -143,7 +151,7 @@ class Set extends ApiController
         //数据获取逻辑层
         $GetLogic = new GetLogic();
 
-        if($getLogic->ifFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
+        if($getLogic->getFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
 
         //获取用户信息
         $res = self::doQuery(
@@ -319,6 +327,30 @@ class Set extends ApiController
 
         return self::returnSuccess([],"修改成功");
 
+    }
+
+    //添加/新建 分组
+    public function addClass()
+    {
+        $post = self::getPost(['className']);
+
+        if(!$post['className']) exit(self::returnError("请填写分组名"));
+
+        //新建分组
+        $res = self::setField(
+            $command = "insert",
+            $db = "friend_class",
+            $map = '',
+            $param = [
+                'uid' => $this->uid,
+                'name' => $post['className'],
+                'addtime' => $_SERVER['REQUEST_TIME']
+            ]
+        );
+
+        if(!$res) exit(self::returnError("创建失败"));
+
+        exit(self::returnSuccess([],"创建成功"));
     }
 
     public function test()

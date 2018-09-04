@@ -103,7 +103,7 @@ class Get extends ApiController
 
         if(!$friendList) return self::returnSuccess([],"没有好友,快去添加吧！");
 
-        return self::returnSuccess(["list"=>$friendList],"获取成功");
+        return self::returnSuccess(["list" => $friendList],"获取成功");
 
     }
 
@@ -114,7 +114,7 @@ class Get extends ApiController
 
         if($classList) return self::returnSuccess([],'没有分组,快去添加吧！');
 
-        return self::returnSuccess($classList,'没有分组,快去添加吧！');
+        return self::returnSuccess(['list' => $classList],'获取成功');
     }
 
     //获取 三维分组 列表

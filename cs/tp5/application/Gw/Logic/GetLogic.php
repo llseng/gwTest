@@ -9,7 +9,7 @@ class GetLogic extends ApiController
     //用户私聊未读消息
     public function unreadMessage($uid)
     {
-        return self::doQuery(
+        $message = self::doQuery(
             $command = 'select',
             $db = "message m",
             $map = [
@@ -22,6 +22,21 @@ class GetLogic extends ApiController
             $order = "addtime",
             $sort = "desc"
         );
+
+        if($message) self::setField(
+            $command = "update",
+            $db = "message",
+            $map = [
+                'to_uid' => $uid,
+                'status' => 0
+            ],
+            $param = [
+                'status' => 1
+            ]
+        );
+
+        return $message;
+
     }
 
     //获取好友请求

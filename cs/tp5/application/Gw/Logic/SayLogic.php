@@ -70,6 +70,7 @@ class SayLogic extends ApiController
 
         if(!$save) return self::returnError("发送失败");
         
+        //消息推送
         Gateway::sendToUid($post['to_uid'],self::returnSuccess(self::sayData("news",[["uid"=>$this->uid,"nickname"=>$this->nickname,"content"=>$post['content']]])));
 
         return self::returnSuccess([],"发送成功。");
