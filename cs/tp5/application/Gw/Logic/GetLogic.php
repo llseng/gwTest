@@ -156,4 +156,29 @@ class GetLogic extends ApiController
 
     }
 
+    //是否有创建群的权限
+    public function ifCreateGroupPer($uid)
+    {
+        //
+        return self::doQuery(
+            $command = "find",
+            $db = "users",
+            $map = ["id"=>$uid],
+            $param = "id"
+        );
+    }
+
+    //获取群列表
+    public function groupList($uid)
+    {
+        return self::doQuery(
+            $command = "select",
+            $db = "group_user",
+            $map = [
+                'uid' => $uid,
+            ],
+            $param = "group_id,group_nick"
+        );
+    }
+
 }

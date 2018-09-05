@@ -353,6 +353,59 @@ class Set extends ApiController
         exit(self::returnSuccess([],"创建成功"));
     }
 
+    //创建 群组
+    public function createGroup()
+    {
+        $post = self::getPost(['groupName','icon','notice','intro']);
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //是否有创建权限
+        if(!$GetLogic->ifCreateGroupPer($this->uid)) exit(self::returnError("无权群创建权限"));
+        //群组基本信息
+        $info = [
+            'add_uid' => $this->uid,
+            'name' => $post['groupName'],
+            'icon' => $post['icon'],
+            'notice' => $post['notice'],
+            'intro' => $post['intro'],
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+
+        //入库 & 获取群ID
+        $group_id = self::setField(
+            $command = "insertGetId",
+            $db = "group",
+            $map = '',
+            $param = $info
+        );
+
+        if(!$group_id) exit(self::returnError("创建失败"));
+
+        //用户信息
+        $userInfo = [
+            'uid' => $this->uid,
+            'group_id' => $group_id,
+            'group_nick' => Session::get('nickname'),
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+
+        $result = self::setField(
+            $command = "insert",
+            $db = "group_user",
+            $map = '',
+            $param = $userInfo
+        );
+
+        if(!$result) exit(self::returnError("入群失败"));
+        $info['group_id'] = $group_id;
+
+        //绑定群组
+        
+
+        exit(self::returnSuccess($info,"创建成功"));
+    }
+
     public function test()
     {
         //$uid = session::get("uid");

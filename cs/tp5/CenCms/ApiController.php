@@ -143,6 +143,10 @@ class ApiController
 					$insert = Db::name($db)->insertAll($param);
 					return $insert;
 					break;
+				case 'insertGetId':
+						$insert = Db::name($db)->insertGetId($param);
+						return $insert;
+						break;
 	        	case 'delete':
 					$delete = Db::name($db)->where($map)->delete();
 					return $delete;

@@ -34,10 +34,14 @@ class SayLogic extends ApiController
 
         if(!$ifFriend) return self::returnError("非好友,不可聊天");
 
+        //信息类型
+        $say_type = (int)$post['say_type'];
+
         $info = [
             'uid' => $this->uid,
             'to_uid' => $post['to_uid'],
             'content' => $post['content'],
+            'type_id' => $say_type,
             //Gateway服务 无 $_SERVER['REQUEST_TIME'] 数据
             'addtime' => time()
         ];

@@ -1,11 +1,14 @@
 <?php
 namespace app\gw\controller;
 
+use \Db;
 use GatewayClient\Gateway;
 use CenCMS\ApiController;
 use think\facade\Session;
 use think\Container;
 use app\gw\logic\GetLogic;
+
+use app\common\logic\Upload;
 
 use app\gw\logic\SayLogic;
 
@@ -28,6 +31,12 @@ class Test extends ApiController
 	{
 		return view();
 	}
+
+	//
+	public function tests()
+	{
+		return view();
+	}
 	
 	public function login()
 	{
@@ -42,7 +51,7 @@ class Test extends ApiController
 	//
 	public function say()
 	{
-		$post = self::getPost(['type','to_group','to_uid','content']);
+		$post = self::getPost(['type','to_group','to_uid','say_type','content']);
 		$this->SayLogic = new SayLogic(Session::get('uid'),Session::get('nickname'));
 		switch($post['type'])
 		{
@@ -68,7 +77,9 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		var_dump($_SESSION);
+		$a = new Upload('',[]);
+		var_dump($a->getUpInfo());
+		
 	}
 	
 }
