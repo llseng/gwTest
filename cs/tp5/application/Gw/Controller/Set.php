@@ -151,7 +151,7 @@ class Set extends ApiController
         //数据获取逻辑层
         $GetLogic = new GetLogic();
 
-        if($getLogic->getFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
+        if($GetLogic->getFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
 
         //获取用户信息
         $res = self::doQuery(
@@ -246,7 +246,7 @@ class Set extends ApiController
         $result = self::setField(
             $command = "update",
             $db = "add_friend",
-            $map = "(uid=".$post['friend_id']." and to_uid=".$this->uid.") OR (uid=".$this->uid." and to_uid=".$post['friend_id'].")",
+            $map = "(uid=".$res['uid']." and to_uid=".$this->uid.") OR (uid=".$this->uid." and to_uid=".$res['uid'].")",
             $param = [
                 'state' => $post['state'] ? 1 : 0,
                 'status' => 1,
@@ -258,6 +258,11 @@ class Set extends ApiController
 
         if(!$post['state'])
         {
+            //添加好友成功 给对方推送提示信息
+            if(Gateway::isUidOnline($res['uid'])) Gateway::sendToUid($res['uid'],self::returnSuccess(SayLogic::sayData("ref_add_friend",[
+                ['uid'=>$this->uid,'nickname'=>session::get('nickname'),'intro'=>"拒绝了您的好友请求"]
+            ])));
+
             exit(self::returnError("操作成功"));
         }
 
@@ -390,6 +395,7 @@ class Set extends ApiController
             'addtime' => $_SERVER['REQUEST_TIME']
         ];
 
+        //入群
         $result = self::setField(
             $command = "insert",
             $db = "group_user",
@@ -400,10 +406,33 @@ class Set extends ApiController
         if(!$result) exit(self::returnError("入群失败"));
         $info['group_id'] = $group_id;
 
+        //设置逻辑层
+        $SetLogic = new SetLogic();
         //绑定群组
+        $SetLogic->bindGroup($this->uid,$group_id);
+        //用户添加 群消息关联记录
+        $setGroupReadNews = $SetLogic->setGroupReadNews($this->uid,$group_id);
         
+        exit(self::returnSuccess($info,"创建成功" . ($setGroupReadNews ? '。' : '！')));
+    }
 
-        exit(self::returnSuccess($info,"创建成功"));
+    //上传图片
+    public function uploadImage()
+    {
+        $post = self::getPost(['type']);
+
+        $dirList = ["say/","group_say/"];
+        $type = (int)$post['type'];
+        if($type >= count($dirList)) $type = 0;
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        $info = $SetLogic->upImage($dirList[$type]);
+
+        if($info['status'] !== true) exit(self::returnError($info['status']));
+
+        exit(self::returnSuccess($info,"上传成功"));
+        
     }
 
     public function test()

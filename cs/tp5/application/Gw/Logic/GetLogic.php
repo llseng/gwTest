@@ -163,7 +163,9 @@ class GetLogic extends ApiController
         return self::doQuery(
             $command = "find",
             $db = "users",
-            $map = ["id"=>$uid],
+            $map = [
+                "id"=>$uid
+            ],
             $param = "id"
         );
     }

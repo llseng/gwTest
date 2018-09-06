@@ -77,8 +77,6 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		$a = new Upload('',[]);
-		var_dump($a->getUpInfo());
 		
 	}
 	

@@ -5,6 +5,7 @@ namespace app\gw\logic;
 use CenCMS\ApiController;
 use GatewayClient\Gateway;
 use app\gw\logic\GetLogic;
+use app\common\logic\Upload;
 
 class SetLogic
 {
@@ -39,6 +40,33 @@ class SetLogic
                 Gateway::joinGroup($v,"group_".$val['group_id']);
             }
         }
+    }
+
+    //用户添加 群消息关联记录
+    public function setGroupReadNews($uid,$group_id)
+    {
+        return self::setField(
+            $command = "insert",
+            $db = "group_message_user",
+            $map = '',
+            $param = [
+                'uid' => $uid,
+                'group_id' => $group_id
+            ]
+        );
+    }
+
+    //上传图片
+    public function upImage($movePath)
+    {
+        //上传图片
+        $Upload = new Upload('img',['movePath'=>$movePath]);
+
+        //上传信息
+        $upInfo = $Upload->getUpInfo();
+
+        return $upInfo;
+
     }
 
 }

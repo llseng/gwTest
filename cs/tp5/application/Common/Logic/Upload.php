@@ -14,7 +14,7 @@ class Upload
     private $fileType; //文件类型
     private $fileExt; //文件后缀
 
-    private $movePoth; //自定义路径
+    private $movePath; //自定义路径
 
     private $fullName; //保存后文件名
 
@@ -69,7 +69,7 @@ class Upload
             $sizeRes = (int)$config['sizeRes'];
             if($sizeRes) $this->sizeRes = $sizeRes;
 
-            if($config['movePoth']) $this->movePoth = $config['movePoth'];
+            if($config['movePath']) $this->movePath = $config['movePath'];
         }
 
         if($type != 'upImage')
@@ -89,7 +89,7 @@ class Upload
     {
         if(!$this->typeRes) $this->typeRes = $this->imageTypeRes;
 
-        if(!$this->movePoth) $this->movePoth = "images/";
+        if(!$this->movePath) $this->movePath = "images/";
 
         if($this->fileField)
         {
@@ -209,7 +209,7 @@ class Upload
     //获取自定义路径
     private function getMovePath()
     {
-        return $this->movePoth . date("Ymd/");
+        return $this->movePath . date("Ymd/");
     }
 
     //获取文件保存路径

@@ -4,6 +4,7 @@ namespace app\gw\logic;
 use \Session;
 use CenCms\ApiController;
 use GatewayClient\Gateway;
+use app\gw\logic\GetLogic;
 
 class SayLogic extends ApiController
 {
@@ -15,6 +16,20 @@ class SayLogic extends ApiController
         $this->uid = $uid;
         $this->nickname = $nickname;
     }
+
+    //是否是好友
+    private function ifFriend($friend_id)
+    {
+        return self::doQuery(
+            $command = "find",
+            $db = "friend",
+            $map = [
+                'uid' => $this->uid,
+                'friend_id' => $friend_id
+            ],
+            $param = "id"
+        );
+    }
     
     //用户私聊
     public function say($post)
@@ -22,21 +37,15 @@ class SayLogic extends ApiController
         
         if(!$post['to_uid'] || !$post['content']) return self::returnError("缺少to_uid,content");
 
-        $ifFriend = self::doQuery(
-            $command = "find",
-            $db = "friend",
-            $map = [
-                'uid' => $this->uid,
-                'friend_id' => $post['to_uid']
-            ],
-            $param = "id"
-        );
+        //是否是好友
+        $ifFriend = $this->ifFriend($post['to_uid']);
 
         if(!$ifFriend) return self::returnError("非好友,不可聊天");
 
         //信息类型
         $say_type = (int)$post['say_type'];
 
+        //信息记录
         $info = [
             'uid' => $this->uid,
             'to_uid' => $post['to_uid'],
@@ -75,9 +84,115 @@ class SayLogic extends ApiController
         if(!$save) return self::returnError("发送失败");
         
         //消息推送
-        Gateway::sendToUid($post['to_uid'],self::returnSuccess(self::sayData("news",[["uid"=>$this->uid,"nickname"=>$this->nickname,"content"=>$post['content']]])));
+        Gateway::sendToUid($post['to_uid'],self::returnSuccess(self::sayData("news",[
+            ["uid"=>$this->uid,"say_type"=>$say_type,"nickname"=>$this->nickname,"content"=>$post['content']]
+        ])));
 
         return self::returnSuccess([],"发送成功。");
+    }
+
+    //是否添加了群
+    private function ifUidGroup($group_id,$uid = '')
+    {
+        $uid = (int)$uid;
+
+        return self::doQuery(
+            $command = "find",
+            $db = "group_user",
+            $map = [
+                'uid' => $uid ?: $this->uid,
+                'group_id' => $group_id
+            ],
+            $param = "id,uid,group_nick,addtime"
+        );
+    }
+
+    /**
+     * 用户群聊
+     */
+    public function group_say($post)
+    {
+        if(!$post['to_group'] || !$post['contnet']) return self::returnError("缺少to_group,content");
+
+        $post['to_group'] = (int)$post['to_group']; 
+        $to_uid = (int)$post['to_uid']; 
+        $say_type = (int)$post['say_type'];
+
+        //是否是添加了群
+        $ifUidGroup = $this->ifUidGroup($post['to_group']);
+        if(!$ifUidGroup) return self::returnError("未加入群|已被踢出群");
+
+        //消息详情
+        $info = [
+            'group_id' => $post['to_group'],
+            'uid' => $this->uid,
+            'content' => $post['content'],
+            'say_type' => $say_type,
+            'unick' => $ifUidGroup['group_nick'],
+            'addtime' => time()
+        ];
+
+        if($to_uid)
+        {
+            //群内私聊
+            $info['to_uid'] = $to_uid;
+
+            //用户是否在群中
+            if($thsi->ifUidGroup($post['group_id'],$to_uid)) return self::returnError("发送失败，用户不在群内");
+
+            //是否在线 & 在线推送
+            if(Gateway::isUidOnline($to_uid))
+            {
+                $info['state'] = 1; //消息接受状态
+                //消息推送
+                Gateway::sendToUid($post['to_uid'],self::retrunSuccess(self::sayData("group_news",[
+                    [$info]
+                ]),"有人在群内私聊您"));
+
+            }
+
+            //消息入库
+            $res = self::setField(
+                $command = "insertGetId",
+                $db = "group_message_touser",
+                $map = '',
+                $param = $info
+            );
+
+        }else{
+            //群聊
+            //消息入库
+            $res = self::setField(
+                $command = "insertGetId",
+                $db = "group_message",
+                $map = '',
+                $param = $info
+            );
+
+            if(!$res) return self::returnError("发送失败");
+
+            //消息推送
+            Gateway::sendToGroup("group_".$post['group_id'],self::returnSuccess(self::sayData("group_news",[
+                [$info]
+            ]),"您有一条群消息"));
+
+            //在线用户列表
+            $onlineUid = Gateway::getUidListByGroup("group_".$post['group_id']);
+
+            //在线用户已读数据更新
+            $update = self::setField(
+                $command = "update",
+                $db = "group_message_user",
+                $map = "uid in(".join(',',$onlineUid).")",
+                $param = [
+                    "ms_id" => $res
+                ]
+            );
+
+        }
+
+        return self::returnSuccess([],"发送成功");
+
     }
 
     /**

@@ -59,7 +59,7 @@ class Get extends ApiController
             $param = "id as uid,nickname,username"
         );
 
-        return self::returnSuccess($list,"搜索完成");
+        return self::returnSuccess(["list"=>$list],"搜索完成");
     }
 
     /**
@@ -78,7 +78,7 @@ class Get extends ApiController
             $param = "group_id,name as group_name"
         );
 
-        return self::returnSuccess($list,"搜索完成");
+        return self::returnSuccess(["list"=>$list],"搜索完成");
 
     }
 

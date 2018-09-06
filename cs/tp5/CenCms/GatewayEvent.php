@@ -91,6 +91,13 @@ class GatewayEvent
 					
 					Gateway::sendToclient($client_id,$SayLogic->say($json_data));
 				break;
+				//群聊
+				case "group_say":
+					//聊天逻辑层
+					$SayLogic = new SayLogic($_SESSION['uid'],$_SESSION['nickname']);
+					
+					Gateway::sendToclient($client_id,$SayLogic->group_say($json_data));
+				break;
 
 				default:
 					Gateway::sendToClient($client_id,self::Api()->returnSuccess([],$message));
