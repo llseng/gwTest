@@ -7,7 +7,7 @@ use GatewayClient\Gateway;
 use app\gw\logic\GetLogic;
 use app\common\logic\Upload;
 
-class SetLogic
+class SetLogic extends ApiController
 {
     
     //绑定 Group组/群组
@@ -15,12 +15,12 @@ class SetLogic
     {
         //用户UID 绑定的连接列表
         $linkList = Gateway::getClientIdByUid($uid);
-
+        
         if(!$linkList) return false;
 
         //分组列表
         $group = [];
-        if(!$group_id)
+        if($group_id)
         {
             $group[]['group_id'] = $group_id;
         }else{
@@ -29,7 +29,7 @@ class SetLogic
             //获取用户 所有群组
             $group = $GetLogic->groupList($uid);
         }
-
+        
         if(!$group) return false;
 
         foreach($group as $key => $val)

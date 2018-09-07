@@ -11,6 +11,7 @@ use app\gw\logic\GetLogic;
 use app\common\logic\Upload;
 
 use app\gw\logic\SayLogic;
+use app\gw\logic\SetLogic;
 
 class Test extends ApiController
 {
@@ -77,7 +78,10 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		
+		$SetLogic = new SetLogic();
+		$SetLogic->bindGroup(1);
+
+		//var_dump(Gateway::getAllGroupIdList());
 	}
 	
 }

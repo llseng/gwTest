@@ -20,7 +20,9 @@ class GetLogic extends ApiController
             $join = "im_users u",
             $link = "u.id=m.uid",
             $order = "addtime",
-            $sort = "desc"
+            $sort = "desc",
+            $start = 0,
+            $num = 20
         );
 
         if($message) self::setField(
@@ -55,6 +57,44 @@ class GetLogic extends ApiController
             $order = 'addtime',
             $sort = "desc"
         );
+    }
+
+    //获取用户详情
+    public function getUserInfo($uid)
+    {
+        return self::doQuery(
+            $command = "find",
+            $db = "users",
+            $map = [
+                'id' => $uid
+            ],
+            $param = 'id,nickname'
+        );
+    }
+
+    //获取群组详情
+    public function getGroupInfo($group_id)
+    {
+        return self::doQuery(
+            $command = 'find',
+            $db = "group",
+            $map = [
+                'group_id' => $group_id
+            ],
+            $param = 'group_id,name as group_name,add_uid,icon,notice,intro,addtime'
+        );
+    }
+
+    //获取群管理
+    public function getGroupAdmin($group_id)
+    {
+        /*
+        $admin = self::doQuery(
+            $command = "select",
+            $db = "group",
+
+        );
+        */
     }
 
     //获取好友
@@ -167,6 +207,20 @@ class GetLogic extends ApiController
                 "id"=>$uid
             ],
             $param = "id"
+        );
+    }
+
+    //是否有群管理权限 /并返回 群信息
+    public function ifManageGroupPer($uid,$group_id)
+    {
+        return self::doQuery(
+            $command = "find",
+            $db = "group",
+            $map = [
+                'group_id' => $group_id,
+                'add_uid' => $uid
+            ],
+            $param = "group_id,name as group_name"
         );
     }
 

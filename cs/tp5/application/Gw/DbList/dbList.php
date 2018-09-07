@@ -108,6 +108,29 @@ return [
 		PRIMARY KEY (`type_id`)
 	
 	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='用户消息类型'",
+
+	//用户申请加群记录
+	"im_add_group" => "CREATE TABLE im_add_group(
+
+		`id` int(11) unsigned not null AUTO_INCREMENT COMMENT '记录ID(主键)',
+	
+		`uid` int(11) unsigned not null comment '用户ID（外键）',
+
+		`group_id` int(11) unsigned not null comment '群组ID(外键)',
+
+		`intro` varchar(255) not null default '' comment '进群简介',
+
+		`state` tinyint(1) not null default 0 comment '是否通过',
+
+		`status` tinyint(1) not null default 0 comment '请求是否处理',
+
+		`addtime` int(11) unsigned not null default 0 comment '申请时间',
+
+		`uptime` int(11) unsigned not null default 0 comment '请求处理时间',
+
+		PRIMARY KEY (`id`)
+
+	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='用户申请加群记录'",
 	
 	//群组
 	"im_group" => "CREATE TABLE im_group (

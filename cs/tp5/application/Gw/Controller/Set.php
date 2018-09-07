@@ -74,7 +74,7 @@ class Set extends ApiController
     public function userLogin()
     {
 
-        $post = self::getPost(['uid','client_id']);
+        $post = self::getPost(['uid','connect_id','client_id']);
 
         $isLogin = self::isLogin(1);
         if($isLogin !== false)
@@ -113,6 +113,8 @@ class Set extends ApiController
             $success = self::returnSuccess($uSession,"登录成功");
             Gateway::sendToUid($res['id'],$success);
 
+            //
+
             exit($success);
 
         }else{
@@ -134,7 +136,7 @@ class Set extends ApiController
         //未读私聊信息
         $news = $GetLogic->unreadMessage($this->uid);
         //用户未读消息推送
-        Gateway::sendToUid($this->uid,self::returnSuccess(SayLogic::sayData("news",$news),"有未读信息"));
+        if($news) Gateway::sendToUid($this->uid,self::returnSuccess(SayLogic::sayData("news",$news),"有未读信息"));
 
         exit(self::returnSuccess([],"成功"));
     }
@@ -145,6 +147,8 @@ class Set extends ApiController
         
         $post = self::getPost(['friend_id','intro']);
 
+        $post['friend_id'] = (int)$post['friend_id'];
+
         if($post['friend_id'] == $this->uid) 
             exit(self::returnError("不可添加自己"));
 
@@ -154,15 +158,7 @@ class Set extends ApiController
         if($GetLogic->getFriend($this->uid,$post['friend_id'])) exit(self::returnError("用户已是您的好友"));
 
         //获取用户信息
-        $res = self::doQuery(
-            $command = "find",
-            $db = "users",
-            $map = [
-                'id' => $post['friend_id']
-            ],
-            $param = 'id,nickname'
-        );
-
+        $res = $GetLogic->getUserInfo($post['friend_id']);
         //是否有用户
         if(!$res)
             exit(self::returnError("用户不存在"));
@@ -224,6 +220,7 @@ class Set extends ApiController
 
         //$uid = Session::get("uid");
 
+        $post['order_id'] = (int)$post['order_id'];
         //请求记录
         $res = self::doQuery(
             $command = 'find',
@@ -414,6 +411,151 @@ class Set extends ApiController
         $setGroupReadNews = $SetLogic->setGroupReadNews($this->uid,$group_id);
         
         exit(self::returnSuccess($info,"创建成功" . ($setGroupReadNews ? '。' : '！')));
+    }
+
+    //请求进群
+    public function addGroup()
+    {
+        $post = self::getPost(['group_id','intro']);
+        //群组ID
+        $group_id = (int)$post['group_id'];
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //群组是否存在
+        $getGroup = $GetLogic->getGroupInfo($group_id);
+        if(!$getGroup) exit(self::returnError("群组不存在,申请失败"));
+
+        //是否已有申请记录
+        $reqRecord = self::doQuery(
+            $command = "find",
+            $db = "add_group",
+            $map = [
+                "uid" => $this->uid,
+                "group_id" => $group_id,
+                "status" => 0
+            ],
+            $param = "uid,group_id"
+        );
+        if($reqRecord) exit(self::returnError('请求已提交，无需重复申请'));
+
+        //请求信息
+        $info = [
+            'uid' => $this->uid,
+            'group_id' => $group_id,
+            'intro' => $post['intro'],
+            'addtime' => $_SERVER['REQUEST_TIME'],
+        ];
+
+        //数据入库
+        $result = self::setField(
+            $command = "insert",
+            $db = "add_group",
+            $map = "",
+            $param = $info
+        );
+
+        if(!$result) exit(self::returnError("申请失败"));
+
+        //消息推送给群管理
+        $groupAdminList = $GetLogic->getGroupAdmin($group_id);
+        $info['nickname'] = Session::get("nickname"); //用户名
+        $info["group_name"] = $getGroup['group_name']; //群名称
+        Gateway::sendToUid($groupAdminList,self::returnSuccess(SayLogic::sayData("req_add_group",[
+            $info
+        ]),"有用户申请加群"));
+
+        exit(self::returnSuccess([],"请求提交成功"));
+
+    }
+
+    //同意加群请求
+    public function verifyAddGroup()
+    {
+        $post = self::getPost(['order_id','state']);
+
+        $order_id = (int)$post['order_id'];
+        $state = (int)$post['state'];
+
+        //请求订单数据
+        $orderInfo = self::doQuery(
+            $command = "find",
+            $db = "add_group a",
+            $map = [
+                'a.id' => $order_id, //订单号
+                'status' => 0 //未处理的订单
+            ],
+            $param = "a.uid,a.group_id,a.intro,a.addtime,u.nickname",
+            $join = "users u",
+            $link = "a.uid=u.id"
+        );
+        if(!$orderInfo) exit(self::returnError("请求失败."));
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //是否有管理权限 & 返回群信息
+        $ifManageGroupPer = $GetLogic->ifManageGroupPer($this->uid,$orderInfo['group_id']);
+        if(!$ifManageGroupPer) exit(self::returnError("无权限/请求错误.."));
+
+        //条件数据
+        $verifyMap = [
+            "uid" => $orderInfo['uid'],
+            "group_id" => $orderInfo['group_id'],
+            "status" => 0
+        ];
+
+        //修改记录
+        $verify = self::setField(
+            $command = "update",
+            $db = "add_group",
+            $map = $verifyMap,
+            $param = [
+                "state" => ($state ? 1 : 0),
+                "uptime" => $_SERVER['REQUEST_TIME'] //处理时间
+            ]
+        );
+
+        if(!$verify) exit(self::returnError("设置失败"));
+        
+        //拒绝
+        if(!$state){
+            //消息推送
+            if(Gateway::isUidOnline($orderInfo['uid']))
+            {
+                Gateway::sendToUid($orderInfo['uid'],self::returnSuccess(SayLogic::sayData("ref_add_group",[
+                    ["group_id"=>$orderInfo['group_id'],"group_name"=>$ifManageGroupPer['group_id']]
+                ]),"您的进群申请被拒绝"));
+            }
+
+        }
+
+        //同意进群==
+        //用户信息
+        $userInfo = [
+            "uid" => $orderInfo['uid'],
+            "group_id" => $orderInfo['group_id'],
+            "group_nick" => $orderInfo["nickname"],
+            "addtime" => $_SERVER['REQUEST_TIME']
+        ];
+
+        //入群
+        $result = self::setField(
+            $command = "insert",
+            $db = "group_user",
+            $map = '',
+            $param = $userInfo
+        );
+        if(!$result) exit(self::returnError("用户进群失败"));
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //用户添加 群消息关联记录
+        $SetLogic->setGroupReadNews($orderInfo['uid'],$orderInfo['group_id']);
+        //用户绑定 Group/群组
+        $SetLogic->bindGroup($orderInfo['uid'],$orderInfo['group_id']);
+
+        exit(self::returnSuccess([],"设置成功"));
+
     }
 
     //上传图片
