@@ -32,6 +32,12 @@ class Test extends ApiController
 	{
 		return view();
 	}
+	
+	//聊天demo
+	public function index_k()
+	{
+		return view();
+	}
 
 	//
 	public function tests()
@@ -78,10 +84,11 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		$SetLogic = new SetLogic();
-		$SetLogic->bindGroup(1);
+		var_dump(session::get());die;
+		$post = input();
+		$SayLogic = new SayLogic(session::get());
 
-		//var_dump(Gateway::getAllGroupIdList());
+		echo $SayLogic->say($post);
 	}
 	
 }

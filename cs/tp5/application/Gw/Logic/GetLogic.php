@@ -41,6 +41,58 @@ class GetLogic extends ApiController
 
     }
 
+    //查找用户
+    public function findFriend($cond,$page = 1)
+    {
+        //MYSql 模糊查询防注入
+        $cond = addcslashes($cond,"%_");
+
+        $page < 1 && $page = 1;
+        $pageNum = 20;
+        $limitStart = ($page - 1) * $pageNum;
+
+        $list = self::doQuery(
+            $command = "select",
+            $db = 'users',
+            $map = "concat(`id`,`nickname`,`username`) like '%".$cond."%'",
+            $param = "id as uid,nickname,username,avatar",
+            $join = '',
+            $link = '',
+            $order = "id",
+            $sort = "",
+            $start = $limitStart,
+            $num = $pageNum
+        );
+
+        return $list;
+    }
+
+    //查找群组
+    public function findGroup($cond,$page = 0)
+    {
+        //MYSql 模糊查询防注入
+        $cond = addcslashes($cond,"%_");
+
+        $page < 1 && $page = 1; //页数不可小于
+        $pageNum = 20;
+        $limitStart = ($page - 1) * $pageNum;
+
+        $list = self::doQuery(
+            $command = "select",
+            $db = 'group g',
+            $map = "concat(g.group_id,g.name) like '%".$cond."%'",
+            $param = "g.group_id,g.name as group_name,gu.mannum",
+            $join = "(select count(uid) as mannum,group_id from im_group_user group by group_id) gu",
+            $link = "g.group_id=gu.group_id",
+            $order = "g.group_id",
+            $sort = "",
+            $start = $limitStart,
+            $num = $pageNum
+        );
+
+        return $list;
+    }
+
     //获取好友请求
     public function addFriend($uid)
     {
@@ -68,7 +120,7 @@ class GetLogic extends ApiController
             $map = [
                 'id' => $uid
             ],
-            $param = 'id,nickname'
+            $param = 'id,nickname,avatar'
         );
     }
 
@@ -85,16 +137,40 @@ class GetLogic extends ApiController
         );
     }
 
-    //获取群管理
+    //获取群管理列表 return ['uid'=>'1',...]
     public function getGroupAdmin($group_id)
     {
-        /*
         $admin = self::doQuery(
+            $command = "find",
+            $db = "group",
+            $map = [
+                "group_id" => $group_id
+            ],
+            $param = "add_uid"
+        );
+
+        return $admin;
+    }
+
+    //获取用户可管理的群 return [grput_id_1,group_id_2,...]
+    public function getUidGroupAamin($uid)
+    {
+        $group = self::doQuery(
             $command = "select",
             $db = "group",
-
+            $map = [
+                "add_uid" => $uid
+            ],
+            $param = "group_id"
         );
-        */
+
+        $groupList = [];
+        foreach ($group as $key => $val)
+        {
+            $groupList[] = $val['group_id'];
+        }
+
+        return $groupList;
     }
 
     //获取好友
@@ -129,7 +205,7 @@ class GetLogic extends ApiController
         );
     }
 
-    //是否有分组
+    //是否有该分组
     public function getClass($uid,$class_id)
     {
         return self::doQuery(
@@ -224,6 +300,19 @@ class GetLogic extends ApiController
         );
     }
 
+    //获取群用户信息
+    public function isInGroup($uid,$group_id){
+        return self::doQuery(
+            $command = "find",
+            $db = "group_user",
+            $map = [
+                "uid" => $uid,
+                "group_id" => $group_id
+            ],
+            $param = "uid,group_id,group_nick,addtime"
+        );
+    }
+
     //获取群列表
     public function groupList($uid)
     {
@@ -236,5 +325,8 @@ class GetLogic extends ApiController
             $param = "group_id,group_nick"
         );
     }
+
+    //获取用户好友会话记录
+    //public function 
 
 }

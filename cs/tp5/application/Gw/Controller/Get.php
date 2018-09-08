@@ -49,15 +49,10 @@ class Get extends ApiController
     public function findFriend()
     {
         $post = self::getPost(['cond']);
-        //MYSql 模糊查询防注入
-        $cond = addcslashes($post['cond'],"%_");
+
+        if(!$post['cond']) return self::returnError("搜索值不可为空");
         
-        $list = self::doQuery(
-            $command = "select",
-            $db = 'users',
-            $map = "concat(`id`,`nickname`,`username`) like '%".$cond."%'",
-            $param = "id as uid,nickname,username"
-        );
+        $list = $this->GetLogic->findFriend($post['cond'],$post['page']);
 
         return self::returnSuccess(["list"=>$list],"搜索完成");
     }
@@ -68,17 +63,29 @@ class Get extends ApiController
     public function findGroup()
     {
         $post = self::getPost(['cond']);
-        //MYSql 模糊查询防注入
-        $cond = addcslashes($post['cond'],"%_");
 
-        $list = self::doQuery(
-            $command = "select",
-            $db = 'group',
-            $map = "concat(`group_id`,`name`) like '%".$cond."%'",
-            $param = "group_id,name as group_name"
-        );
+        if(!$post['cond']) return self::returnError("搜索值不可为空");
+
+        $list = $this->GetLogic->findGroup($post['cond'],$post['page']);
 
         return self::returnSuccess(["list"=>$list],"搜索完成");
+
+    }
+
+    /**
+     * 搜索 好友|群
+     */
+    public function findAll()
+    {
+        $post = self::getPost(['cond','page']);
+
+        if(!$post['cond']) return self::returnError("搜索值不可为空");
+        
+        $friendList = $this->GetLogic->findFriend($post['cond'],$post['page']);
+
+        $groupList = $this->GetLogic->findGroup($post['cond'],$post['page']);
+
+        return self::returnSuccess(["friendList"=>$friendList,"groupList"=>$groupList],"搜索完成");
 
     }
 
@@ -92,7 +99,7 @@ class Get extends ApiController
 
         if(!$list) return self::returnSuccess([],"无好友请求");
 
-        return self::returnSuccess($list,'获取成功');
+        return self::returnSuccess(["list"=>$list],'获取成功');
     }
 
     //获取好友列表
@@ -128,6 +135,29 @@ class Get extends ApiController
         $classFriend = GetLogic::classSort($classList,$friendList);
 
         return self::returnSuccess(["classFriend" => $classFriend]);
+
+    }
+
+    /**
+     * 获取进群请求
+     */
+    public function addGroup()
+    {
+        //可管理的群列表 return [group_id,group_id2,...]
+        $UidGroup = $this->GetLogic->getUidGroupAamin($this->uid);
+
+        $addGroupList = self::doQuery(
+            $command = "select",
+            $db = "group g",
+            $map = '',
+            $param = "a.id,a.uid,a.intro,a.addtime,a.group_id,a.nickname,g.name as group_name",
+            $join = "(select ag.*,u.nickname from im_add_group ag join im_users u on ag.group_id in(" .join(",",$UidGroup). ") and ag.uid=u.id) a",
+            $link = "g.group_id in(" .join(",",$UidGroup). ") and a.group_id=g.group_id and a.status=0"
+        );
+
+        if(!$addGroupList) return self::returnSuccess([],"没有加群请求");
+
+        return self::returnSuccess(["list"=>$addGroupList],"获取成功");
 
     }
 

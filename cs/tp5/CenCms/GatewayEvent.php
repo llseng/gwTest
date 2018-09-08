@@ -77,6 +77,8 @@ class GatewayEvent
 	//当客户端发来数据(Gateway进程收到数据)后触发的回调函数
 	public static function onMessage($client_id, $message)
 	{
+		error_reporting(E_ALL & ~E_NOTICE);
+
 		$json_data = json_decode($message,1);
 
 		if($json_data)
@@ -87,14 +89,14 @@ class GatewayEvent
 				//单聊
 				case "say":
 					//聊天逻辑层
-					$SayLogic = new SayLogic($_SESSION['uid'],$_SESSION['nickname']);
+					$SayLogic = new SayLogic($_SESSION);
 					
 					Gateway::sendToclient($client_id, $SayLogic->say($json_data));
 				break;
 				//群聊
 				case "group_say":
 					//聊天逻辑层
-					$SayLogic = new SayLogic($_SESSION['uid'],$_SESSION['nickname']);
+					$SayLogic = new SayLogic($_SESSION);
 					
 					Gateway::sendToclient($client_id, $SayLogic->group_say($json_data));
 				break;

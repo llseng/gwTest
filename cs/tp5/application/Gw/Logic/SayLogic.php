@@ -8,13 +8,14 @@ use app\gw\logic\GetLogic;
 
 class SayLogic extends ApiController
 {
-    public function __construct($uid,$nickname)
+    public function __construct($session)
     {
         parent::__construct();
 
         //为了兼容 与 Gateway服务 （Gateway 里用 session::get("uid") 错误）
-        $this->uid = $uid;
-        $this->nickname = $nickname;
+        $this->uid = $session['uid'];
+        $this->nickname = $session['nickname'];
+        $this->avatar = $session['avatar'];
     }
 
     //是否是好友
@@ -85,7 +86,7 @@ class SayLogic extends ApiController
         
         //消息推送
         Gateway::sendToUid($post['to_uid'],self::returnSuccess(self::sayData("news",[
-            ["uid"=>$this->uid,"say_type"=>$say_type,"nickname"=>$this->nickname,"content"=>$post['content']]
+            ["uid"=>$this->uid,"say_type"=>$say_type,"nickname"=>$this->nickname,"avatar"=>$this->avatar,"content"=>$post['content'],"addtime"=>$info['addtime']]
         ])));
 
         return self::returnSuccess([],"发送成功。");
@@ -112,7 +113,7 @@ class SayLogic extends ApiController
      */
     public function group_say($post)
     {
-        if(!$post['to_group'] || !$post['contnet']) return self::returnError("缺少to_group,content");
+        if(!$post['to_group'] || !$post['content']) return self::returnError("缺少to_group,content");
 
         $post['to_group'] = (int)$post['to_group']; 
         $to_uid = (int)$post['to_uid']; 
@@ -138,7 +139,7 @@ class SayLogic extends ApiController
             $info['to_uid'] = $to_uid;
 
             //用户是否在群中
-            if($thsi->ifUidGroup($post['group_id'],$to_uid)) return self::returnError("发送失败，用户不在群内");
+            if($thsi->ifUidGroup($post['to_group'],$to_uid)) return self::returnError("发送失败，用户不在群内");
 
             //是否在线 & 在线推送
             if(Gateway::isUidOnline($to_uid))
@@ -172,22 +173,26 @@ class SayLogic extends ApiController
             if(!$res) return self::returnError("发送失败");
 
             //消息推送
-            Gateway::sendToGroup("group_".$post['group_id'],self::returnSuccess(self::sayData("group_news",[
+            Gateway::sendToGroup("group_".$post['to_group'],self::returnSuccess(self::sayData("group_news",[
                 [$info]
             ]),"您有一条群消息"));
 
             //在线用户列表
-            $onlineUid = Gateway::getUidListByGroup("group_".$post['group_id']);
+            $onlineUid = Gateway::getUidListByGroup("group_".$post['to_group']);
+            
+            //有人在线
+            if($onlineUid){
+                //在线用户已读数据更新
+                $update = self::setField(
+                    $command = "update",
+                    $db = "group_message_user",
+                    $map = "uid in(".join(',',$onlineUid).")",
+                    $param = [
+                        "ms_id" => $res
+                    ]
+                );
 
-            //在线用户已读数据更新
-            $update = self::setField(
-                $command = "update",
-                $db = "group_message_user",
-                $map = "uid in(".join(',',$onlineUid).")",
-                $param = [
-                    "ms_id" => $res
-                ]
-            );
+            }
 
         }
 

@@ -32,6 +32,8 @@ return [
 		`uid` int(11) unsigned not null COMMENT '用户ID(外键)',
 		
 		`friend_id` int(11) unsigned not null COMMENT '好友ID(外键)',
+
+		`top` tinyint(1) unsigned not null comment '用与聊天记录置顶',
 		
 		`class_id` int(11) unsigned not null default 0 COMMENT '用户分组ID',
 		
