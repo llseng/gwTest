@@ -93,6 +93,8 @@ return [
 	`status` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '消息接受状态',
 	
 	`addtime` int(11) unsigned NOT NULL DEFAULT 0 COMMENT '消息发送时间',
+
+	`cancel` TINYINT(1) NOT NULL default 0 comment '取消显示(撤销的意识)',
 	
 	PRIMARY KEY (`id`)
 	

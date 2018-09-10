@@ -1,6 +1,7 @@
 <?php
 namespace app\gw\controller;
 
+use \Db;
 use \Session;
 use CenCMS\ApiController;
 use GatewayClient\Gateway;
@@ -41,6 +42,36 @@ class Get extends ApiController
         
         if($r) return false;
         exit(self::returnError('未登录'));
+    }
+
+    //用户会话未读消息
+    public function unreadMessage()
+    {
+        $unreadMessages = $this->GetLogic->unreadMessages($this->uid);
+
+        if(!$unreadMessages) return self::returnError("无会话消息");
+
+        return self::returnSuccess(["list"=>$unreadMessages],"会话消息");
+    }
+
+    //用户单聊消息记录
+    public function friendMessage()
+    {
+        $post = self::getPost(['friend_id','ms_id']);
+        //好友ID
+        $friend_id = (int)$post['friend_id'];
+        //是否是好友
+        $friendInfo = $this->GetLogic->getFriend($this->uid,$friend_id);
+        if(!$friendInfo) return self::returnError("非好友，获取失败");
+
+        $ms_id = (int)$post['ms_id']; //消息ID
+
+        $messageList = $this->GetLogic->friendMessageList($this->uid,$friend_id,$ms_id);
+
+        if(!$messageList) return self::returnError("消息倒头了");
+
+        return self::returnSuccess(["list"=>$messageList],"获取成功");
+
     }
 
     /**

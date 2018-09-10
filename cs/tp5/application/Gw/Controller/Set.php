@@ -143,13 +143,6 @@ class Set extends ApiController
         exit(self::returnSuccess([],"成功"));
     }
 
-    //用户未读消息
-    public function unreadMessage()
-    {
-        //用户回话记录
-        
-    }
-
     //强行添加好友
     private function forceAddFriend($data)
     {

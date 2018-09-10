@@ -84,11 +84,15 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		var_dump(session::get());die;
-		$post = input();
-		$SayLogic = new SayLogic(session::get());
+		$a = ['11','1','111'];
+		$b = ['22'.'2','222'];
+		$c = ['33','3'];
 
-		echo $SayLogic->say($post);
+		var_dump(array_merge($a,$b,$c));
+		die;
+		$GetLogic = new GetLogic();
+
+		var_dump($GetLogic->groupUnreadNum(session::get("uid")));
 	}
 	
 }

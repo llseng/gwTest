@@ -1,10 +1,14 @@
 <?php
 namespace app\gw\logic;
 
+use \Db;
 use CenCMS\ApiController;
 
 class GetLogic extends ApiController
 {
+
+    //消息缓存天数
+    public $nDay = 30;
 
     //用户私聊未读消息
     public function unreadMessage($uid)
@@ -39,6 +43,239 @@ class GetLogic extends ApiController
 
         return $message;
 
+    }
+
+    //好友对我会话记录
+    public function friendMessage($uid){
+
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+        
+        $sql = "SELECT a.*,f.top,f.name as mark
+        FROM im_friend f
+        INNER JOIN (SELECT m.uid as id,m.content,m.type_id as say_type,m.status as state,m.addtime,u.nickname as name,u.avatar FROM im_message m INNER JOIN im_users u ON m.to_uid={$uid} and m.addtime>{$beforeTime} and m.uid=u.id ORDER BY `addtime` DESC) a
+        ON f.uid={$uid} and f.friend_id=a.id
+        GROUP BY a.id
+        ORDER BY f.top DESC,a.state DESC,a.addtime DESC";
+
+        //用户会话记录
+        $friendMessage = Db::query($sql);
+
+        return $friendMessage;
+
+    }
+
+    //我对好友回话记录
+    public function friendMessageU($uid)
+    {
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+        
+        /*
+        $sql = "SELECT a.*,f.top,f.name as mark
+        FROM im_friend f
+        INNER JOIN (SELECT m.uid as id,m.content,m.type_id as say_type,m.status as state,m.addtime,u.nickname as name,u.avatar FROM im_message m INNER JOIN im_users u ON m.to_uid={$uid} and m.addtime>{$beforeTime} and m.uid=u.id ORDER BY `addtime` DESC) a
+        ON f.uid={$uid} and f.friend_id=a.id
+        GROUP BY a.id
+        ORDER BY f.top DESC,a.state DESC,a.addtime DESC";
+        */
+
+        $sql = "SELECT a.uid as id,a.to_uid,a.content,a.type_id as say_type,a.status as state,a.addtime,a.nickname as name,a.avatar,f.name as mark,f.class_id,f.top 
+        FROM (SELECT l.*,u.nickname,u.avatar FROM (SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and uid={$uid} UNION ALL SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and to_uid={$uid}) l LEFT JOIN im_users u ON l.uid=u.id ORDER BY l.status DESC,l.addtime DESC) a 
+        LEFT JOIN im_friend f
+        ON f.uid={$uid} and a.uid=f.friend_id
+        GROUP BY a.mid";
+
+        //用户会话记录
+        $friendMessage = Db::query($sql);
+
+        return $friendMessage;
+    }
+
+    //单聊未读消息数分组
+    public function firendUnreadNum($uid)
+    {
+
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+
+        $sql = "SELECT uid,count(*) as num 
+        FROM im_message 
+        WHERE addtime>{$beforeTime} and to_uid={$uid} and status=0 
+        GROUP BY uid";
+
+        $unreadNumList = Db::query($sql);
+
+        return $unreadNumList;
+    }
+
+    //群会话记录
+    public function groupMessage($uid)
+    {
+
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+
+        $sql = "SELECT * 
+        FROM (SELECT gu.uid,gu.group_id,g.name as group_name,g.icon as gavatar FROM im_group_user gu INNER JOIN im_group g ON gu.uid={$uid} and gu.group_id=g.group_id ) b
+        INNER JOIN (SELECT gm.group_id as id,gm.uid,gm.content,gm.addtime,gm.say_type,gm.unick,gu.group_nick FROM im_group_message gm INNER JOIN im_group_user gu ON gm.addtime>{$beforeTime} and gm.uid=gu.uid ORDER BY gm.addtime DESC) a
+        ON a.id=b.group_id
+        GROUP BY a.id
+        ORDER BY a.addtime DESC";
+
+        $groupMessage = Db::query($sql);
+
+        return $groupMessage;
+    }
+
+    //群未读信息数列表
+    public function groupUnreadNum($uid)
+    {
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+
+        $sql = "SELECT a.group_id,count(*) as num 
+        FROM (SELECT gu.uid,gu.group_id,gmu.ms_id FROM im_group_user gu INNER JOIN im_group_message_user gmu ON gu.uid={$uid} and gu.group_id=gmu.group_id and gu.uid=gmu.uid) a
+        INNER JOIN im_group_message m
+        ON m.addtime>{$beforeTime} and m.group_id=a.group_id and m.id>a.ms_id
+        GROUP BY m.group_id";
+
+        $unreadNumList = Db::query($sql);
+
+        return $unreadNumList;
+        
+    }
+
+    public function unreadMessages($uid)
+    {
+        //$GetLogic = new GetLogic();
+        //单聊最后一条记录
+        //$friendMessage = $this->friendMessage($uid);
+        $friendMessage = $this->friendMessageU($uid);
+var_dump($friendMessage);die;
+        $fml = ["unread"=>[],"read"=>[]];
+
+        if($friendMessage)
+        {
+            //单聊未读记录
+            $fmlUnread = $this->firendUnreadNum($uid);
+            $unreadNum = [];
+            foreach($fmlUnread as $key => $val)
+            {
+                $unreadNum[$val['uid']] = $val['num'];
+            }
+    
+            foreach($friendMessage as $key => $val)
+            {
+                $row = [
+                    "type" => 0,
+                    "id" => $val['id'],
+                    "name" => $val['name'],
+                    "mark" => $val['mark'],
+                    "avatar" => $val['avatar'],
+                    "lastmsg" => [
+                        "say_type"=>$val['say_type'],
+                        "state" => $val['state'],
+                        "content" => $val['content'],
+                        "addtime" => $val['addtime']
+                    ],
+                    "unreadNum" => $unreadNum[$val['id']] ?: 0,
+                    "top" => $val['top']
+                ];
+                /**
+                //信息未读 证明有未读消息 获取未读条数
+                if(!$val['state'])
+                {
+                    $row['unreadNum'] = (int)$unreadNum[$val['id']];
+                }
+                */
+                //未读消息
+                if($unreadNum[$val['id']])
+                {
+                    $fml["unread"][] = $row;
+                }else{
+                    $fml["read"][] = $row;
+                }
+                //$fml[] = $row;
+                
+            }
+
+        }
+
+        //群聊最后一条记录
+        $groupMessage = $this->groupMessage($uid);
+
+        $gml = ["unread"=>[],"read"=>[]];
+
+        if($groupMessage)
+        {
+            //群聊未读数
+            $gmlUnread = $this->groupUnreadNum($uid);
+            $unreadNum = [];
+            foreach($gmlUnread as $key => $val)
+            {
+                $unreadNum[$val['group_id']] = $val['num'];
+            }
+
+            foreach($groupMessage as $key => $val)
+            {
+                $row = [
+                    "type" => 1,
+                    "id" => $val['id'],
+                    "name" => $val['group_name'],
+                    "mark" => $val['mark'],
+                    "avatar" => $val['avatar'],
+                    "lastmsg" => [
+                        "uid" => $val['uid'],
+                        "name" => $val['unick'],
+                        "say_type"=>$val['say_type'],
+                        "content" => $val['content'],
+                        "addtime" => $val['addtime'],
+                        "state" => $unreadNum[$val['id']] ? 0 : 1, //有未读 证明当前未读
+                    ],
+                    "unreadNum" => $unreadNum[$val['id']] ?: 0
+                ];
+    
+                //
+                if($unreadNum[$val['id']])
+                {
+                    $gml["unread"][] = $row;
+                }else{
+                    $gml["read"][] = $row;
+                }
+
+                //$gml[] = $row;
+            }
+        }
+
+        //var_dump($groupMessage,$friendMessage);
+        //var_dump($fml,$gml);
+        $list = array_merge($fml['unread'],$gml['unread'],$fml['read'],$gml['read']);
+
+        return $list;
+        
+    }
+
+    //用户单聊消息记录
+    public function friendMessageList($uid,$friend_id,$ms_id = 0,$limitNum = 20)
+    {
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+
+        $msWhere = '';
+        if($ms_id) $msWhere .= "and id<{$ms_id}";
+
+        $sqlUnion = "SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$uid} and uid={$friend_id} and cancel=0
+        UNION ALL
+        SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$friend_id} and uid={$uid} and cancel=0";
+
+        $sql = "SELECT a.*
+        FROM ( {$sqlUnion} ) a
+        ORDER BY a.addtime DESC
+        LIMIT 0,$limitNum";
+
+        $list = Db::query($sql);
+
+        $SetLogic = new SetLogic();
+        //所有消息 为已读
+        $SetLogic->readFriendMessage($uid,$friend_id);
+        //Db::execute("UPDATE im_message SET status=1 WHERE addtime>{$beforeTime} and to_uid={$uid} and uid={$friend_id}");
+
+        return $list;
     }
 
     //查找用户

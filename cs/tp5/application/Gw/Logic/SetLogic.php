@@ -56,6 +56,18 @@ class SetLogic extends ApiController
         );
     }
 
+    //好友所有消息为已读
+    public function readFriendMessage($uid,$friend_id)
+    {
+        $GetLogic = new GetLogic();
+
+        $beforeTime = time() - ($GetLogic->nDay * 86400); //n天前
+
+        //所有消息 为已读
+        return Db::execute("UPDATE im_message SET status=1 WHERE addtime>{$beforeTime} and to_uid={$uid} and uid={$friend_id}");
+
+    }
+
     //上传图片
     public function upImage($movePath)
     {
