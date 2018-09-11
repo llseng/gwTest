@@ -18,7 +18,8 @@ class GetLogic extends ApiController
             $db = "message m",
             $map = [
                 'm.to_uid' => $uid,
-                'm.status' => 0
+                'm.status' => 0,
+                "m.cancel" => 0
             ],
             $param = "m.type_id,m.uid,m.content,m.addtime,u.username,u.nickname",
             $join = "im_users u",
@@ -52,7 +53,7 @@ class GetLogic extends ApiController
         
         $sql = "SELECT a.*,f.top,f.name as mark
         FROM im_friend f
-        INNER JOIN (SELECT m.uid as id,m.content,m.type_id as say_type,m.status as state,m.addtime,u.nickname as name,u.avatar FROM im_message m INNER JOIN im_users u ON m.to_uid={$uid} and m.addtime>{$beforeTime} and m.uid=u.id ORDER BY `addtime` DESC) a
+        INNER JOIN (SELECT m.uid as id,m.content,m.type_id as say_type,m.status as state,m.addtime,u.nickname as name,u.avatar FROM im_message m INNER JOIN im_users u ON m.to_uid={$uid} and m.addtime>{$beforeTime} and m.uid=u.id and m.cancel=0 ORDER BY `addtime` DESC) a
         ON f.uid={$uid} and f.friend_id=a.id
         GROUP BY a.id
         ORDER BY f.top DESC,a.state DESC,a.addtime DESC";
@@ -64,7 +65,7 @@ class GetLogic extends ApiController
 
     }
 
-    //我对好友回话记录
+    //我和好友回话记录
     public function friendMessageU($uid)
     {
         $beforeTime = time() - ($this->nDay * 86400); //n天前
@@ -78,8 +79,8 @@ class GetLogic extends ApiController
         ORDER BY f.top DESC,a.state DESC,a.addtime DESC";
         */
 
-        $sql = "SELECT a.uid as id,a.to_uid,a.content,a.type_id as say_type,a.status as state,a.addtime,a.nickname as name,a.avatar,f.name as mark,f.class_id,f.top 
-        FROM (SELECT l.*,u.nickname,u.avatar FROM (SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and uid={$uid} UNION ALL SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and to_uid={$uid}) l LEFT JOIN im_users u ON l.uid=u.id ORDER BY l.status DESC,l.addtime DESC) a 
+        $sql = "SELECT a.id,a.uid,a.to_uid,a.content,a.type_id as say_type,a.status as state,a.addtime,a.nickname as name,a.avatar,f.name as mark,f.class_id,f.top 
+        FROM (SELECT l.*,u.nickname,u.avatar FROM (SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and uid={$uid} and cancel=0 UNION ALL SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and to_uid={$uid} and cancel=0) l LEFT JOIN im_users u ON u.id=l.mid-{$uid} ORDER BY l.status DESC,l.addtime DESC) a 
         LEFT JOIN im_friend f
         ON f.uid={$uid} and a.uid=f.friend_id
         GROUP BY a.mid";
@@ -98,7 +99,7 @@ class GetLogic extends ApiController
 
         $sql = "SELECT uid,count(*) as num 
         FROM im_message 
-        WHERE addtime>{$beforeTime} and to_uid={$uid} and status=0 
+        WHERE addtime>{$beforeTime} and to_uid={$uid} and status=0 and cancel=0
         GROUP BY uid";
 
         $unreadNumList = Db::query($sql);
@@ -141,13 +142,14 @@ class GetLogic extends ApiController
         
     }
 
+    //所有回话最后一条记录
     public function unreadMessages($uid)
     {
         //$GetLogic = new GetLogic();
         //单聊最后一条记录
         //$friendMessage = $this->friendMessage($uid);
         $friendMessage = $this->friendMessageU($uid);
-var_dump($friendMessage);die;
+        
         $fml = ["unread"=>[],"read"=>[]];
 
         if($friendMessage)
@@ -164,11 +166,12 @@ var_dump($friendMessage);die;
             {
                 $row = [
                     "type" => 0,
-                    "id" => $val['id'],
+                    "id" => $val['uid'] == $uid ? $val['to_uid'] : $val['uid'], //发送ID为自己的话 消息就是 发给对方
                     "name" => $val['name'],
                     "mark" => $val['mark'],
                     "avatar" => $val['avatar'],
                     "lastmsg" => [
+                        "id" => $val['id'],
                         "say_type"=>$val['say_type'],
                         "state" => $val['state'],
                         "content" => $val['content'],
@@ -177,7 +180,13 @@ var_dump($friendMessage);die;
                     "unreadNum" => $unreadNum[$val['id']] ?: 0,
                     "top" => $val['top']
                 ];
-                /**
+
+                if($val['uid'] == $uid)
+                {
+                    $row['lastmsg']['uid'] = $uid;
+                }
+
+                /*
                 //信息未读 证明有未读消息 获取未读条数
                 if(!$val['state'])
                 {
@@ -252,7 +261,7 @@ var_dump($friendMessage);die;
     }
 
     //用户单聊消息记录
-    public function friendMessageList($uid,$friend_id,$ms_id = 0,$limitNum = 20)
+    public function friendMessageList($uid,$friend_id,$ms_id = 0,$limitNum = 10)
     {
         $beforeTime = time() - ($this->nDay * 86400); //n天前
 
@@ -263,7 +272,7 @@ var_dump($friendMessage);die;
         UNION ALL
         SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$friend_id} and uid={$uid} and cancel=0";
 
-        $sql = "SELECT a.*
+        $sql = "SELECT a.*,a.type_id as type,a.type_id as say_type,a.status as state
         FROM ( {$sqlUnion} ) a
         ORDER BY a.addtime DESC
         LIMIT 0,$limitNum";
@@ -273,6 +282,31 @@ var_dump($friendMessage);die;
         $SetLogic = new SetLogic();
         //所有消息 为已读
         $SetLogic->readFriendMessage($uid,$friend_id);
+        //Db::execute("UPDATE im_message SET status=1 WHERE addtime>{$beforeTime} and to_uid={$uid} and uid={$friend_id}");
+
+        return $list;
+    }
+
+    //用户群聊记录
+    public function groupMessageList($uid,$group_id,$ms_id = 0,$limitNum = 10)
+    {
+        $beforeTime = time() - ($this->nDay * 86400); //n天前
+
+        $msWhere = '';
+        if($ms_id) $msWhere .= "and id<{$ms_id}";
+
+        $sql = "SELECT gm.say_type as type,gm.content,gm.uid,gm.addtime,guu.group_nick as nick,guu.nickname as name,guu.avatar
+        FROM im_group_message gm
+        INNER JOIN (SELECT gu.uid,gu.group_nick,u.nickname,u.avatar FROM im_group_user gu INNER JOIN im_users u ON gu.group_id={$group_id} and gu.uid=u.id ) guu
+        ON gm.addtime>{$beforeTime} and gm.group_id={$group_id} {$msWhere} and gm.uid=guu.uid
+        ORDER BY gm.addtime DESC
+        LIMIT 0,$limitNum";
+
+        $list = Db::query($sql);
+
+        $SetLogic = new SetLogic();
+        //所有消息 为已读
+        $SetLogic->readGroupMessage($uid,$group_id);
         //Db::execute("UPDATE im_message SET status=1 WHERE addtime>{$beforeTime} and to_uid={$uid} and uid={$friend_id}");
 
         return $list;
@@ -348,7 +382,7 @@ var_dump($friendMessage);die;
         );
     }
 
-    //获取用户详情
+    //获取用户信息
     public function getUserInfo($uid)
     {
         return self::doQuery(
@@ -357,7 +391,7 @@ var_dump($friendMessage);die;
             $map = [
                 'id' => $uid
             ],
-            $param = 'id,nickname,avatar'
+            $param = 'id,id as uid,nickname,mobile,email,avatar,username,sex,city,addtime'
         );
     }
 
@@ -383,7 +417,7 @@ var_dump($friendMessage);die;
             $map = [
                 "group_id" => $group_id
             ],
-            $param = "add_uid"
+            $param = "add_uid as uid"
         );
 
         return $admin;
@@ -434,12 +468,26 @@ var_dump($friendMessage);die;
             $map = [
                 "uid" => $uid,
             ],
-            $param = "friend_id,class_id,nickname,name",
+            $param = "friend_id as id,class_id,nickname as name,name as mark,avatar",
             $join = "im_users",
             $link = "im_friend.friend_id=im_users.id",
             $order = "name",
             $sort = "desc"
         );
+    }
+
+    //获取用户群信息列表
+    public function userGroupList($uid)
+    {
+        $sql = "SELECT a.*,b.mannum 
+        FROM (SELECT g.group_id,g.name as group_name,g.icon as avatar,gu.group_nick as nick,gu.addtime FROM im_group g INNER JOIN im_group_user gu ON gu.uid={$uid} and gu.group_id=g.group_id) a
+        LEFT JOIN (SELECT count(uid) as mannum,group_id FROM im_group_user GROUP BY group_id) b
+        ON a.group_id=b.group_id
+        ORDER BY a.addtime DESC";
+
+        $list = Db::query($sql);
+
+        return $list;
     }
 
     //是否有该分组
@@ -550,7 +598,7 @@ var_dump($friendMessage);die;
         );
     }
 
-    //获取群列表
+    //获取用户关联群ID列表
     public function groupList($uid)
     {
         return self::doQuery(
@@ -561,6 +609,25 @@ var_dump($friendMessage);die;
             ],
             $param = "group_id,group_nick"
         );
+    }
+    
+    //获取群用户列表
+    public function groupUserList($group_id,$num = 10)
+    {
+        $num <= 0 && $num = 10;
+
+        $sql = "SELECT u.nickname,u.username,u.avatar,gu.uid,gu.group_nick as nick,gu.addtime 
+        FROM im_users u
+        INNER JOIN im_group_user gu
+        ON gu.group_id={$group_id} and u.id=gu.uid
+        ORDER BY gu.rig DESC,gu.addtime
+        LIMIT 0,$num";
+
+        //执行
+        $list = Db::query($sql);
+
+        return $list;
+
     }
 
     //获取用户好友会话记录

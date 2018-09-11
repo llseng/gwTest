@@ -167,6 +167,8 @@ return [
 		`uid` int(11) unsigned not null COMMENT '用户id(外键)',
 		
 		`group_id` int(10) unsigned not null COMMENT '群组ID(外键)',
+
+		`rig` tinyint(1) unsigned not null default 0 comment '管理权限',
 		
 		`addtime` int(11) unsigned not null default 0 COMMENT '入群时间',
 		

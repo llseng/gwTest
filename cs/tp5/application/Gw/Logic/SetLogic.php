@@ -1,7 +1,7 @@
 <?php
 namespace app\gw\logic;
 
-
+use \Db;
 use CenCMS\ApiController;
 use GatewayClient\Gateway;
 use app\gw\logic\GetLogic;
@@ -68,6 +68,19 @@ class SetLogic extends ApiController
 
     }
 
+    //群消息 已读到最后
+    public function readGroupMessage($uid,$group_id)
+    {
+        $GetLogic = new GetLogic();
+
+        $beforeTime = time() - ($GetLogic->nDay * 86400); //n天前
+
+        $max = Db::query("SELECT MAX(id) as max FROM im_group_message WHERE addtime>{$beforeTime} and group_id={$group_id}");
+        
+        //所有消息 为已读
+        return Db::execute("UPDATE im_group_message_user SET ms_id=".$max[0]['max'].",uptime=".time()." WHERE uid={$uid} and group_id={$group_id}");
+    }
+
     //上传图片
     public function upImage($movePath)
     {
@@ -79,6 +92,12 @@ class SetLogic extends ApiController
 
         return $upInfo;
 
+    }
+
+    //删除与好友的所有关联数据
+    public function deleteFriendData($uid,$friend_id)
+    {
+        return false;
     }
 
 }

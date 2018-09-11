@@ -54,6 +54,23 @@ class Get extends ApiController
         return self::returnSuccess(["list"=>$unreadMessages],"会话消息");
     }
 
+    //获取用户详情
+    public function userInfo()
+    {
+        $post = self::getPost(['uid']);
+        //用户ID
+        $uid = (int)$post['uid'];
+        //用户详情
+        $userInfo = $this->GetLogic->getUserInfo($uid);
+        if(!$userInfo) return self::returnError("用户不存在");
+        //是否是好友
+        $isFriendData = $this->GetLogic->getFriend($this->uid,$uid);
+        $isFriend = $isFriendData ? 1 : 0;
+
+        return self::returnSuccess(["info"=>$userInfo,"isFriend"=>$isFriend],"获取成功");
+
+    }
+
     //用户单聊消息记录
     public function friendMessage()
     {
@@ -72,6 +89,27 @@ class Get extends ApiController
 
         return self::returnSuccess(["list"=>$messageList],"获取成功");
 
+    }
+
+    /**
+     * 群聊消息记录
+     */
+    public function groupMessage()
+    {
+        $post = self::getPost(['group_id','ms_id']);
+        //好友ID
+        $group_id = (int)$post['group_id'];
+        //是否有加群组
+        $isInGroup = $this->GetLogic->isInGroup($this->uid,$group_id);
+        if(!$isInGroup) return self::returnError("未添加群组，获取失败");
+        
+        $ms_id = $post['ms_id']; //消息ID
+        
+        $messageList = $this->GetLogic->groupMessageList($this->uid,$group_id,$ms_id);
+
+        if(!$messageList) return self::returnError("消息倒头了");
+
+        return self::returnSuccess(["list"=>$messageList],"获取成功");
     }
 
     /**
@@ -145,6 +183,28 @@ class Get extends ApiController
 
     }
 
+    //获取群组列表
+    public function groupList()
+    {
+        $groupList = $this->GetLogic->userGroupList($this->uid);
+
+        if(!$groupList) return self::returnSuccess([],"没有群组,快去添加吧！");
+
+        return self::returnSuccess(["list" => $groupList],"获取成功");
+    }
+
+    //获取好友和群组列表
+    public function FGList()
+    {
+        //获取好友列表
+        $friendList =  $this->GetLogic->friendList($this->uid);
+        //获取群组列表
+        $groupList = $this->GetLogic->userGroupList($this->uid);
+
+        return self::returnSuccess(["friendList" => $friendList,"groupList"=>$groupList],"获取成功");
+
+    }
+
     //获取分组
     public function classList()
     {
@@ -190,6 +250,50 @@ class Get extends ApiController
 
         return self::returnSuccess(["list"=>$addGroupList],"获取成功");
 
+    }
+
+    /**
+     * 获取群详请 群信息 群管理 群成员
+     */
+    public function groupInfo()
+    {
+        //
+        $post = self::getPost(['group_id']);
+        $group_id = (int)$post['group_id'];
+
+        //获取群信息
+        $groupInfo = $this->GetLogic->getGroupInfo($group_id);
+        if(!$groupInfo) return self::returnError("群不存在,获取失败");
+        
+        //获取管理 [uid=>1,...]
+        $groupAdmin = $this->GetLogic->getGroupAdmin($group_id);
+        $adminList = []; //群管理 ID 列表
+        foreach($groupAdmin as $key => $val)
+        {
+            $adminList[] = $val;
+        }
+
+        //群用户列表
+        $groupUserList = $this->GetLogic->groupUserList($group_id);
+
+        foreach($groupUserList as $key => &$val)
+        {
+            //是否是管理
+            $val['isAdmin'] = 0;
+            if(in_array($val['uid'],$adminList)) $val['isAdmin'] = 1; 
+        }
+
+        //是否在群里
+        $isInGroup = $this->GetLogic->isInGroup($this->uid,$group_id);
+
+        $list = [
+            "info" => $groupInfo,
+            "userList" => $groupUserList,
+            "isInGroup" => $isInGroup ? 1 : 0,
+        ];
+
+        return self::returnSuccess($list,"获取成功");
+        
     }
 
     //

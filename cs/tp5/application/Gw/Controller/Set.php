@@ -79,9 +79,15 @@ class Set extends ApiController
 
         $post = self::getPost(['uid','connect_id','client_id']);
 
-        $isLogin = self::isLogin(1);
-        if($isLogin !== false)
-            return exit(self::returnSuccess(['uid'=>$isLogin,'nickname'=>session::get("nickname")],"已登录"));
+        //已登录 不可再登录
+        if(0){
+            $isLogin = self::isLogin(1);
+            if($isLogin !== false)
+                return exit(self::returnSuccess(['uid'=>$isLogin,'nickname'=>session::get("nickname")],"已登录"));
+        }
+        
+        //删除当前所有session
+        Session::clear(null);
         
         $uid = (int)$post['uid'];
 
@@ -115,8 +121,11 @@ class Set extends ApiController
             $success = self::returnSuccess($uSession,"登录成功");
             Gateway::sendToUid($res['id'],$success);
 
-            //
-
+            //设置逻辑层
+            $SetLogic = new SetLogic();
+            //用户绑定 所有群组
+            $SetLogic->bindGroup($res['id']);
+            
             exit($success);
 
         }else{
@@ -626,6 +635,29 @@ class Set extends ApiController
         }
 
         exit(self::returnSuccess([],"设置成功" .($setGroupReadNews ? '.' : '!')));
+
+    }
+
+    //删除好友
+    public function deleteFriend()
+    {
+        $post = self::getPost(['friend_id']);
+        $friend_id = (int)$post['friend_id'];
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        $ifFriend = $GetLogic->getFriend($this->uid,$friend_id); //是否是好友
+        //不是好友
+        if(!$ifFriend) exit(self::returnError("操作错误，非好友"));
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //删除与好友的所有关联数据
+        $result = $SetLogic->deleteFriendData($this->uid,$friend_id);
+
+        if(!$result) exit(self::returnError("操作失败"));
+
+        exit(self::returnSuccess([],"操作成功"));
 
     }
 

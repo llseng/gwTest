@@ -72,7 +72,7 @@ class SayLogic extends ApiController
         }
 
         //用户在线 信息已读
-        $info['status'] = 1;
+        //$info['status'] = 1;
 
         //保存聊天记录
         $save = self::setField(
@@ -89,7 +89,7 @@ class SayLogic extends ApiController
             ["uid"=>$this->uid,"say_type"=>$say_type,"nickname"=>$this->nickname,"avatar"=>$this->avatar,"content"=>$post['content'],"addtime"=>$info['addtime']]
         ])));
 
-        return self::returnSuccess([],"发送成功。");
+        return self::returnSuccess(["rec"=>$post['rec']],"发送成功。");
     }
 
     //是否添加了群
@@ -147,7 +147,7 @@ class SayLogic extends ApiController
                 $info['state'] = 1; //消息接受状态
                 //消息推送
                 Gateway::sendToUid($post['to_uid'],self::retrunSuccess(self::sayData("group_news",[
-                    [$info]
+                    $info
                 ]),"有人在群内私聊您"));
 
             }
@@ -174,13 +174,14 @@ class SayLogic extends ApiController
 
             //消息推送
             Gateway::sendToGroup("group_".$post['to_group'],self::returnSuccess(self::sayData("group_news",[
-                [$info]
+                $info
             ]),"您有一条群消息"));
 
+            /* //群消息已读改为 其他模式
             //在线用户列表
             $onlineUid = Gateway::getUidListByGroup("group_".$post['to_group']);
             
-            //有人在线
+            //有人在线 并把已读记录改为最新
             if($onlineUid){
                 //在线用户已读数据更新
                 $update = self::setField(
@@ -193,10 +194,11 @@ class SayLogic extends ApiController
                 );
 
             }
+            */
 
         }
 
-        return self::returnSuccess([],"发送成功");
+        return self::returnSuccess(["rec"=>$post['rec']],"发送成功");
 
     }
 
