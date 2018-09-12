@@ -192,7 +192,7 @@ class Set extends ApiController
         //添加好友成功 给对方推送提示信息
         if(Gateway::isUidOnline($data['to_uid'])) Gateway::sendToUid($data['to_uid'],self::returnSuccess(SayLogic::sayData("add_friend",[
             ['uid'=>$this->uid,'nickname'=>session::get('nickname'),"avatar"=>session::get('avatar')]
-        ]),"强行添加好友"));
+        ]),"添加好友"));
 
         exit(self::returnSuccess([],"操作成功"));
 
@@ -220,6 +220,20 @@ class Set extends ApiController
         if(!$res)
             exit(self::returnError("用户不存在"));
 
+        //记录数据
+        $paramData = [
+            'uid' => $this->uid,
+            'to_uid' => $res['id'],
+            'intro' => $post['intro'],
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+        
+        //强行加好友
+        if($post['force'])
+        {
+            exit($this->forceAddFriend($paramData));
+        }
+
         //是否已有请求记录
         if(self::doQuery(
             $command = "find",
@@ -232,19 +246,6 @@ class Set extends ApiController
             $param = "id"
         )) {
            exit(self::returnError("请求已发送，无需重复提交")); 
-        }
-
-        //记录数据
-        $paramData = [
-            'uid' => $this->uid,
-            'to_uid' => $res['id'],
-            'intro' => $post['intro'],
-            'addtime' => $_SERVER['REQUEST_TIME']
-        ];
-        
-        if($post['force'])
-        {
-            exit($this->forceAddFriend($paramData));
         }
 
         //保存记录
@@ -475,6 +476,65 @@ class Set extends ApiController
         exit(self::returnSuccess($info,"创建成功" . ($setGroupReadNews ? '。' : '！')));
     }
 
+    //强行进群
+    private function forceAddGroup($info)
+    {
+        $group_name = $info['group_name'];
+        unset($info['group_name']);
+        $info['state'] = 1;
+        $info['uptime'] = $_SERVER['REQUEST_TIME'];
+
+        //数据入库
+        $result = self::setField(
+            $command = "insertGetId",
+            $db = "add_group",
+            $map = "",
+            $param = $info
+        );
+
+        if(!$result) exit(self::returnError("操作失败"));
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+
+        $userInfoData = $GetLogic->getUserInfo($this->uid);
+        //用户信息
+        $userInfo = [
+            "uid" => $userInfoData['uid'],
+            "group_id" => $info['group_id'],
+            "group_nick" => $userInfoData["nickname"],
+            "addtime" => $_SERVER['REQUEST_TIME']
+        ];
+
+        //入群
+        $result = self::setField(
+            $command = "insert",
+            $db = "group_user",
+            $map = '',
+            $param = $userInfo
+        );
+        if(!$result) exit(self::returnError("进群失败"));
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //用户添加 群消息关联记录
+        $setGroupReadNews = $SetLogic->setGroupReadNews($userInfoData['uid'],$info['group_id']);
+
+        //用户在线
+        if(Gateway::isUidOnline($userInfoData['uid']))
+        {
+            //用户绑定 Group/群组
+            $SetLogic->bindGroup($userInfoData['uid'],$info['group_id']);
+            //消息推送  
+            Gateway::sendToUid($userInfoData['uid'],self::returnSuccess(SayLogic::sayData("add_group",[
+                ["group_id"=>$info['group_id'],"group_name"=>$group_name,"group_nick"=>$userInfoData["nickname"]]
+            ]),"您已加入群聊"));
+        }
+
+
+        exit(self::returnSuccess([],"入群成功" .($setGroupReadNews ? '.' : '!')));
+    }
+
     //请求进群
     public function addGroup()
     {
@@ -492,6 +552,21 @@ class Set extends ApiController
         $isInGroup = $GetLogic->isInGroup($this->uid,$group_id);
         if($isInGroup) exit(self::returnError("已在群内，无需申请添加"));
 
+        //请求信息
+        $info = [
+            'uid' => $this->uid,
+            'group_id' => $group_id,
+            'intro' => $post['intro'],
+            'addtime' => $_SERVER['REQUEST_TIME'],
+        ];
+
+        //强行进群
+        if($post['force'])
+        {
+            $info['group_name'] = $getGroup['group_name'];
+            exit($this->forceAddGroup($info));
+        }
+
         //是否已有申请记录
         $reqRecord = self::doQuery(
             $command = "find",
@@ -504,14 +579,6 @@ class Set extends ApiController
             $param = "uid,group_id"
         );
         if($reqRecord) exit(self::returnError('请求已提交，无需重复申请'));
-
-        //请求信息
-        $info = [
-            'uid' => $this->uid,
-            'group_id' => $group_id,
-            'intro' => $post['intro'],
-            'addtime' => $_SERVER['REQUEST_TIME'],
-        ];
 
         //数据入库
         $result = self::setField(

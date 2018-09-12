@@ -372,7 +372,7 @@ class GetLogic extends ApiController
             $db = "add_friend",
             $map = [
                 'to_uid' => $uid,
-                //'status' => 0,
+                'status' => 0,
             ],
             $param = 'id,uid,intro,addtime',
             $join = '',

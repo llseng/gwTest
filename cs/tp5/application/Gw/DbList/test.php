@@ -29,7 +29,7 @@ function query($mysqli,$query)
 $i = 0;
 foreach($dblist as $key => $val)
 {
-	
+	echo $key . "==>";
 	//die($val);
 	var_export(query($mysqli,$val));
 	//echo "MYSQL ERROR[".$mysqli->erron."] :" . $mysqli->error . "\r\n";

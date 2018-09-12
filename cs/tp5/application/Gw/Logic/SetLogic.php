@@ -97,7 +97,16 @@ class SetLogic extends ApiController
     //删除与好友的所有关联数据
     public function deleteFriendData($uid,$friend_id)
     {
-        return false;
+        
+        //执行存储过程
+        $result = Db::query("call user_delete_friend({$uid},{$friend_id})");
+
+        if(!$result) return false;
+
+        if($result[0][0]['err']) return false;
+
+        return true;
+        
     }
 
 }

@@ -43,7 +43,7 @@ return [
 		
 		PRIMARY KEY (`id`)
 	
-	)ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='用户好友表'",
+	)ENGINE=INNODB DEFAULT CHARSET=utf8 COMMENT='用户好友表'",
 	
 	//用户状态表
 	"im_user_state" => "CREATE TABLE im_user_state (
@@ -242,6 +242,32 @@ return [
 		PRIMARY KEY (`id`)
 		
 	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='群内私聊消息关联表'",
+
+	//删除原有存储过程
+	"drop-user_delete_friend" => "DROP PROCEDURE IF EXISTS user_delete_friend",
+	//用户删除好友存储过程
+	"user_delete_friend" => "CREATE PROCEDURE user_delete_friend(in par_uid int,in par_friend_id int)
+	BEGIN
+
+		DECLARE err tinyint(1) DEFAULT 0;
+
+		DECLARE CONTINUE HANDLER FOR SQLWARNING,NOT FOUND,SQLEXCEPTION SET err = 1;
+
+		START TRANSACTION;
+		
+		delete from im_friend where (`uid`=par_uid and `friend_id`=par_friend_id) or (`uid`=par_friend_id and `friend_id`=par_uid);
+
+		update im_message set cancel=1 where (`uid`=par_uid and `to_uid`=par_friend_id) or (`uid`=par_friend_id and `to_uid`=par_uid);
+
+		IF err THEN
+			ROLLBACK;
+		ELSE
+			COMMIT;
+		END IF;
+
+		select err;
+
+	END;",
 	
 ];
 

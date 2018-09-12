@@ -84,7 +84,7 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		var_dump(Gateway::getAllGroupIdList());
+		var_dump(Db::query("show table status"));
 	}
 	
 }
