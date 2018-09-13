@@ -176,7 +176,7 @@ return [
 	
 		PRIMARY KEY (`id`)
 	
-	)ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='群用户关联表'",
+	)ENGINE=INNODB DEFAULT CHARSET=utf8 COMMENT='群用户关联表'",
 	
 	//群消息内容表
 	"im_group_message" => "CREATE TABLE im_group_message(
@@ -194,6 +194,8 @@ return [
 		`unick` varchar(32) NOT NULL COMMENT '发送用户昵称(群昵称/用户名)',
 		
 		`addtime` int(11) unsigned NOT NULL DEFAULT 0 COMMENT '信息创建时间',
+
+		`cancel` tinyint(1) unsigned not null default 0 comment '取消显示(撤销的意思)',
 		
 		PRIMARY KEY (`id`)
 	
@@ -218,7 +220,7 @@ return [
 		
 		PRIMARY KEY (`id`)
 	
-	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='群消息关联表(用户已读未读状态表)'",
+	)ENGINE=INNODB DEFAULT CHARSET=utf8 COMMENT='群消息关联表(用户已读未读状态表)'",
 	
 	//群内私聊消息关联表
 	"im_group_message_touser" => "CREATE TABLE im_group_message_touser(
@@ -243,6 +245,44 @@ return [
 		
 	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='群内私聊消息关联表'",
 
+	//提示信息配置
+	"im_hint_config" => "CREATE TABLE im_hint_config(
+		
+		`id` int(11) unsigned not null AUTO_INCREMENT comment '主键',
+
+		`name` varchar(30) not null comment '消息键',
+
+		`nick` varchar(30) not null comment '简称',
+
+		`content` varchar(100) not null comment '消息内容',
+
+		`addtime` int(11) unsigned not null default 0 comment '创建时间',
+
+		PRIMARY KEY (`id`),
+
+		UNIQUE INDEX name(`name`)
+
+	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='系统提示信息配置表'",
+
+	//系统公告表
+	"im_notice" => "CREATE TABLE im_notice(
+
+		`id` int(11) unsigned not null AUTO_INCREMENT comment '主键',
+
+		`type` tinyint(1) unsigned not null default 0 comment '公告类型 0 用户 1 群组',
+
+		`to` int(11) unsigned not null default 0 comment '发向的对象(用户ID | 群ID)',
+
+		`content` varchar(255) not null comment '公搞内容',
+
+		`addtime` int(11) unsigned not null default 0 comment '发布时间',
+
+		`outtime` int(11) unsigned not null default 0 comment '过期时间',
+
+		primary key (`id`)
+
+	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='系统公告表信息表'",
+
 	//删除原有存储过程
 	"drop-user_delete_friend" => "DROP PROCEDURE IF EXISTS user_delete_friend",
 	//用户删除好友存储过程
@@ -258,6 +298,34 @@ return [
 		delete from im_friend where (`uid`=par_uid and `friend_id`=par_friend_id) or (`uid`=par_friend_id and `friend_id`=par_uid);
 
 		update im_message set cancel=1 where (`uid`=par_uid and `to_uid`=par_friend_id) or (`uid`=par_friend_id and `to_uid`=par_uid);
+
+		IF err THEN
+			ROLLBACK;
+		ELSE
+			COMMIT;
+		END IF;
+
+		select err;
+
+	END;",
+
+	//删除原有存储过程
+	"drop-user_delete_group" => "DROP PROCEDURE IF EXISTS user_delete_group",
+	//用户退出群组
+	"user_delete_group" => "CREATE PROCEDURE user_delete_group(in par_uid int,in par_group_id int)
+	BEGIN
+
+		DECLARE err tinyint(1) DEFAULT 0;
+
+		DECLARE CONTINUE HANDLER FOR SQLWARNING,NOT FOUND,SQLEXCEPTION SET err = 1;
+
+		START TRANSACTION;
+
+		delete from im_group_user where `uid`=par_uid and `group_id`=par_group_id;
+
+		delete from im_group_message_user where `uid`=par_uid and `group_id`=par_group_id;
+
+		update im_group_message set cancel=1 where `uid`=par_uid and `group_id`=par_group_id;
 
 		IF err THEN
 			ROLLBACK;

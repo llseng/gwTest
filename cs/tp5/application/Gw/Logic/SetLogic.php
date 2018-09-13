@@ -6,6 +6,7 @@ use CenCMS\ApiController;
 use GatewayClient\Gateway;
 use app\gw\logic\GetLogic;
 use app\common\logic\Upload;
+use app\gw\logic\SayLogic;
 
 class SetLogic extends ApiController
 {
@@ -45,13 +46,23 @@ class SetLogic extends ApiController
     //用户添加 群消息关联记录
     public function setGroupReadNews($uid,$group_id)
     {
+        $lastMsg = self::doQuery(
+            $command = "find",
+            $db = "group_message",
+            $map = [
+                'group_id' => $group_id
+            ],
+            $param = "max(id) as id"
+        );
+
         return self::setField(
             $command = "insert",
             $db = "group_message_user",
             $map = '',
             $param = [
                 'uid' => $uid,
-                'group_id' => $group_id
+                'group_id' => $group_id,
+                'ms_id' => $lastMsg['id']
             ]
         );
     }
@@ -107,6 +118,105 @@ class SetLogic extends ApiController
 
         return true;
         
+    }
+
+    //删除群组 并且 所有关联数据
+    public function deleteGroupData($uid,$group_id)
+    {
+        //执行存储过程
+        $result = Db::query("call user_delete_group({$uid},{$group_id})");
+
+        if(!$result) return false;
+
+        if($result[0][0]['err']) return false;
+
+        return true;
+    }
+
+    /**
+     * 提示信息推送
+     * type int
+     * to_uid int | array
+     * hint_key string
+     */
+    public function pushHint($to_uid,$content,$type = false)
+    {
+        //消息详情
+        $info = [
+            'say_type' => 2,
+            'content' => $content,
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+
+        if(!$type)
+        {
+            Gateway::sendToUid($to_uid,self::returnSuccess(SayLogic::sayData("hint",[
+                $info
+            ])));
+        }else{
+            Gateway::sendToUid("group_".$to_uid,self::returnSuccess(SayLogic::sayData("hint",[
+                $info
+            ])));
+        }
+    }
+
+    /**
+     * 添加好友提示
+     */
+    public function addFriendHint($uid,$to_uid)
+    {
+        $GetLogic = new GetLogic();
+        //添加好友提示
+        $content = $GetLogic->hintConfig("ADD_FRIEND");
+        if(!$content) return false;
+
+        $messageList = [];
+        $uInfo = [
+            'uid' => $uid,
+            'to_uid' => $to_uid,
+            'type_id' => 2,
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+        //用户信息
+        $uData = $GetLogic->getUserInfo($uid);
+
+        $uInfo['content'] = preg_replace('/\$\{(\w*?)\}/',$uData['nickname'],$content);
+
+        $messageList[] = $uInfo;
+        
+        $tuInfo = [
+            'uid' => $to_uid,
+            'to_uid' => $uid,
+            'type_id' => 2,
+            'addtime' => $_SERVER['REQUEST_TIME']
+        ];
+        //用户信息
+        $tuData = $GetLogic->getUserInfo($to_uid);
+
+        $tuInfo['content'] = preg_replace('/\$\{(\w*?)\}/',$tuData['nickname'],$content);
+
+        $messageList[] = $tuInfo;
+
+        //消息入库
+        $result = self::setField(
+            $command = "insertAll",
+            $db = "message",
+            $map = '',
+            $param = $messageList
+        );
+
+        if(!$result) return false;
+
+        $this->pushHint($to_uid,$uInfo['content']);
+
+        $this->pushHint($uid,$tuInfo['content']);
+    }
+
+
+    //公搞信息推送 接口
+    public function pushNotice()
+    {
+
     }
 
 }

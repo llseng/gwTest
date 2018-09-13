@@ -2,6 +2,7 @@
 namespace app\gw\controller;
 
 use \Db;
+use \Cache;
 use GatewayClient\Gateway;
 use CenCMS\ApiController;
 use think\facade\Session;
@@ -84,7 +85,14 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		var_dump(Db::query("show table status"));
+		var_dump(self::doQuery(
+            $command = "find",
+            $db = "group_message",
+            $map = [
+                'group_id' => 2
+            ],
+            $param = "max(id) as max"
+        ));
 	}
 	
 }

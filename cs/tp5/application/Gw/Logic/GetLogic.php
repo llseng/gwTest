@@ -630,6 +630,50 @@ class GetLogic extends ApiController
 
     }
 
+
+    //提示信息
+    private function hintData()
+    {
+        
+        $hintData = self::doQuery(
+            $command = "select",
+            $db = "hint_config",
+            $map = '',
+            $param = "name,nick,content"
+        );
+
+        $hintConfig = [];
+        //未配置信息
+        $hintConfig["UNDFIND"] = "其他信息";
+
+        foreach($hintData as $key => $val)
+        {
+            if(!$val['name']) continue;
+            $hintConfig[strtoupper($val['name'])] = $val['content'];
+        }
+
+        return $hintConfig;
+
+    }
+
+    //获取配置提示信息
+    public function hintConfig($key,$ifCache = false)
+    {
+        
+        if($ifCache) 
+        {
+            $hintConfig = Cache::get("hintConfig") ?: Cache::set("hintConfig",$this->hintData(),86400) ? Cache::get("hintConfig") : $this->hintData();
+        }else{
+            $hintConfig = $this->hintData();
+        }
+
+        $key = strtoupper($key);
+
+        //return $hintConfig[$key] ?: $hintConfig['UNDFIND'];
+        return $hintConfig[$key] ?: false;
+
+    }
+
     //获取用户好友会话记录
     //public function 
 

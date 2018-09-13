@@ -194,6 +194,10 @@ class Set extends ApiController
             ['uid'=>$this->uid,'nickname'=>session::get('nickname'),"avatar"=>session::get('avatar')]
         ]),"添加好友"));
 
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        $SetLogic->addFriendHint($this->uid,$data['to_uid']);
+
         exit(self::returnSuccess([],"操作成功"));
 
     }
@@ -348,6 +352,10 @@ class Set extends ApiController
             ['uid'=>$this->uid,'nickname'=>session::get('nickname'),"avatar"=>session::get("avatar")]
         ])));
 
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        $SetLogic->addFriendHint($this->uid,$res['uid']);
+
         exit(self::returnSuccess(['friendInfo'=>$res],"操作成功"));
     }
 
@@ -452,7 +460,8 @@ class Set extends ApiController
             'uid' => $this->uid,
             'group_id' => $group_id,
             'group_nick' => Session::get('nickname'),
-            'addtime' => $_SERVER['REQUEST_TIME']
+            'addtime' => $_SERVER['REQUEST_TIME'],
+            'rig' => 2,
         ];
 
         //入群
@@ -530,7 +539,6 @@ class Set extends ApiController
                 ["group_id"=>$info['group_id'],"group_name"=>$group_name,"group_nick"=>$userInfoData["nickname"]]
             ]),"您已加入群聊"));
         }
-
 
         exit(self::returnSuccess([],"入群成功" .($setGroupReadNews ? '.' : '!')));
     }
@@ -728,6 +736,42 @@ class Set extends ApiController
 
     }
 
+    //退出群组
+    public function deleteGroup()
+    {
+        $post = self::getPost(['group_id']);
+
+        $group_id = (int)$post['group_id'];
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //是否在群组里 & 返回群信息
+        $isInGroup = $GetLogic->isInGroup($this->uid,$group_id);
+        if(!$isInGroup) exit(self::returnError("操作失败，非群组"));
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //删除与好友的所有关联数据
+        $result = $SetLogic->deleteGroupData($this->uid,$group_id);
+
+        if(!$result) exit(self::returnError("操作失败"));
+
+        exit(self::returnSuccess([],"操作成功"));
+
+
+    }
+
+    //踢出群
+    public function kickOutGroup()
+    {
+        $post = self::getPost(['member_id','group_id']);
+        //成员ID
+        $member_id = (int)$post['member_id'];
+        //群组ID
+        $group_id = (int)$post['group_id'];
+
+        
+    }
+
     //上传图片
     public function uploadImage()
     {
@@ -745,6 +789,58 @@ class Set extends ApiController
 
         exit(self::returnSuccess($info,"上传成功"));
         
+    }
+
+    //修改配置信息
+    public function hintConfig()
+    {
+        $post = self::getPost(['name','nick','content']);
+        if(!$post['name'] || !$post['nick'] || !$post['content']) return self::returnError("数据不可为空['name','nick','content']");
+
+        $name = strtoupper($post['name']);
+        $nick = $post['nick'];
+        $content = $post['content'];
+
+        //是否有相关配置
+        $res = self::doQuery(
+            $command = "find",
+            $db = "hint_config",
+            $map = [
+                "name" => $name
+            ],
+            $param = "id,name,nick,content"
+        );
+
+        //信息详情
+        $info = [
+            "nick" => $nick,
+            "content" => $content
+        ];
+
+        if($res)
+        {
+            $result = self::setField(
+                $command = "update",
+                $db = "hint_config",
+                $map = [
+                    "name" => $name
+                ],
+                $param = $info
+            );
+        }else{
+            $info['name'] = $name;
+            $result = self::setField(
+                $command = "insert",
+                $db = "hint_config",
+                $map = "",
+                $param = $info
+            );
+        }
+
+        if(!$result) exit(self::returnError("操作失败"));
+
+        exit(self::returnSuccess([],"操作成功"));
+
     }
 
     public function test()
