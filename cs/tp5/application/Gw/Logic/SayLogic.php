@@ -175,7 +175,7 @@ class SayLogic extends ApiController
             //消息推送
             Gateway::sendToGroup("group_".$post['to_group'],self::returnSuccess(self::sayData("group_news",[
                 $info
-            ]),"您有一条群消息"));
+            ]),"您有一条群消息"),[$info['uid']]);
 
             /* //群消息已读改为 其他模式
             //在线用户列表

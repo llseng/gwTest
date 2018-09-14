@@ -725,9 +725,14 @@ class Set extends ApiController
     //退出群组
     public function deleteGroup()
     {
+        die("API CLOSE");
         $post = self::getPost(['group_id']);
 
         $group_id = (int)$post['group_id'];
+
+        //成员ID
+        $member_id = (int)$post['member_id'];
+
         //数据获取逻辑层
         $GetLogic = new GetLogic();
         
@@ -744,8 +749,32 @@ class Set extends ApiController
         //是否是群主
         if($this->uid == $groupInfo['add_uid'])
         {
-            //删除群组的所有关联数据
-            $result = $SetLogic->deleteGroupDataAll($group_id);
+            //群成员
+            $groupUserList = $GetLogic->groupUserList($group_id);
+            $memNum = count($groupUserList); //群内人数
+
+            //群内只剩一人(自己)
+            if($memNum <= 1) 
+            {
+                //删除群组的所有关联数据
+                $result = $SetLogic->deleteGroupDataAll($group_id);
+            }else{
+                //已指定下任群主
+                if($member_id)
+                {
+                    //是否在群组里 & 返回群信息
+                    $memberIsInGroup = $GetLogic->isInGroup($member_id,$group_id);
+                    if(!$memberIsInGroup) exit(self::returnError("指定失败，用户不在群内"));
+
+                }else{
+                    $member_id = $groupUserList[0]['uid'];
+                }
+
+                //$res = Db::execute("UPDATE im_group g inner join im_group_user gu on  g.group_id=gu.group_id");
+
+                //删除用户与群组的所有关联数据
+                $result = $SetLogic->deleteGroupData($this->uid,$group_id);
+            }
         }else{
             //删除用户与群组的所有关联数据
             $result = $SetLogic->deleteGroupData($this->uid,$group_id);

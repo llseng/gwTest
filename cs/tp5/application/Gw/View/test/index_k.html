@@ -141,6 +141,37 @@
 				//this.socket.send(e);
 			}
 
+			$.groupSend = function(group_id,content)
+			{
+				var say_type = "group_say";
+
+				if(!this.socket)
+				{
+					//this.error("please connect to the server first !!!");
+					this.error("请先连接到服务器");
+					return false;
+				}
+				
+				if(this.socket.readyState != 1)
+				{
+					this.error(this.readyError[this.socket.readyState]);
+					return false;
+				}
+
+				var sendData = {
+					"content": content,
+					"to_group": group_id,
+					"type": say_type,
+				}
+				console.log('a');
+				console.log(sendData);
+
+				this.socket.send(JSON.stringify(sendData));
+
+				console.log(this);
+				//this.socket.send(e);
+			}
+
 			//断开连接
 			$.close = function(e)
 			{
@@ -257,7 +288,7 @@
 				showFriend(list);
 				
 				//获取未读消息
-				ws.request({"url":"gw/set/messagePush"});
+				//ws.request({"url":"gw/set/messagePush"});
 			}});
 		}
 
