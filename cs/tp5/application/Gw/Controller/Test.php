@@ -85,14 +85,14 @@ class Test extends ApiController
 	
 	public function test()
 	{
-		var_dump(self::doQuery(
-            $command = "find",
-            $db = "group_message",
-            $map = [
-                'group_id' => 2
-            ],
-            $param = "max(id) as max"
-        ));
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //入群后提示信息
+		var_dump($SetLogic->addGroupHint(3,4));
+		
+		var_dump(Gateway::getAllGroupIdList());
+		
+		var_dump(Gateway::getUidListByGroup('group_4'));
 	}
 	
 }

@@ -141,11 +141,24 @@ class SetLogic extends ApiController
         
     }
 
-    //删除群组 并且 所有关联数据
+    //删除用户与群组 所有关联数据
     public function deleteGroupData($uid,$group_id)
     {
         //执行存储过程
         $result = Db::query("call user_delete_group({$uid},{$group_id})");
+
+        if(!$result) return false;
+
+        if($result[0][0]['err']) return false;
+
+        return true;
+    }
+
+    //
+    public function deleteGroupDataAll($group_id)
+    {
+        //执行存储过程
+        $result = Db::query("call delete_group({$group_id})");
 
         if(!$result) return false;
 
@@ -175,7 +188,7 @@ class SetLogic extends ApiController
                 $info
             ])));
         }else{
-            Gateway::sendToUid("group_".$to_uid,self::returnSuccess(SayLogic::sayData("hint",[
+            Gateway::sendToGroup("group_".$to_uid,self::returnSuccess(SayLogic::sayData("hint",[
                 $info
             ])));
         }
@@ -233,6 +246,39 @@ class SetLogic extends ApiController
         $this->pushHint($uid,$tuInfo['content']);
     }
 
+    //进入群聊提示
+    public function addGroupHint($uid,$group_id)
+    {
+        $GetLogic = new GetLogic();
+        //入群提示
+        $content = $GetLogic->hintConfig("ADD_GROUP");
+        if(!$content) return false;
+
+        $messageList = [
+            "uid" => $uid,
+            "group_id" => $group_id,
+            "say_type" => 2,
+            "addtime" => time()
+        ];
+        //用户信息
+        $uData = $GetLogic->isInGroup($uid,$group_id);
+
+        $messageList['unick'] = $uData['group_nick'];
+        $messageList['content'] = preg_replace('/\$\{(\w*?)\}/',$uData['group_nick'],$content);
+
+        //消息入库
+        $result = self::setField(
+            $command = "insert",
+            $db = "group_message",
+            $map = '',
+            $param = $messageList
+        );
+
+        if(!$result) return false;
+
+        $this->pushHint($group_id,$messageList['content'],1);
+        
+    }
 
     //公搞信息推送 接口
     public function pushNotice()

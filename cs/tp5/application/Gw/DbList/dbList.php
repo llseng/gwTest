@@ -157,7 +157,7 @@ return [
 		
 		PRIMARY KEY (`group_id`)
 	
-	)ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='用户聊天群组'",
+	)ENGINE=INNODB DEFAULT CHARSET=utf8 COMMENT='用户聊天群组'",
 	
 	//群用户关联表
 	"im_group_user" => "CREATE TABLE im_group_user (
@@ -339,6 +339,36 @@ return [
 		delete from im_friend where (`uid`=par_uid and `friend_id`=par_friend_id) or (`uid`=par_friend_id and `friend_id`=par_uid);
 
 		update im_message set cancel=1 where (`uid`=par_uid and `to_uid`=par_friend_id) or (`uid`=par_friend_id and `to_uid`=par_uid);
+
+		IF err THEN
+			ROLLBACK;
+		ELSE
+			COMMIT;
+		END IF;
+
+		select err;
+
+	END;",
+
+	//删除原有存储过程
+	"drop-delete_group" => "DROP PROCEDURE IF EXISTS delete_group",
+	//用户退出群组
+	"delete_group" => "CREATE PROCEDURE delete_group(in par_group_id int)
+	BEGIN
+
+		DECLARE err tinyint(1) DEFAULT 0;
+
+		DECLARE CONTINUE HANDLER FOR SQLWARNING,NOT FOUND,SQLEXCEPTION SET err = 1;
+
+		START TRANSACTION;
+
+		delete from im_group where `group_id`=par_group_id;
+
+		delete from im_group_user where `group_id`=par_group_id;
+
+		delete from im_group_message_user where `group_id`=par_group_id;
+
+		update im_group_message set cancel=1 where `group_id`=par_group_id;
 
 		IF err THEN
 			ROLLBACK;

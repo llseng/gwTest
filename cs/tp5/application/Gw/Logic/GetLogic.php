@@ -295,10 +295,10 @@ class GetLogic extends ApiController
         $msWhere = '';
         if($ms_id) $msWhere .= "and id<{$ms_id}";
 
-        $sql = "SELECT gm.say_type as type,gm.content,gm.uid,gm.addtime,guu.group_nick as nick,guu.nickname as name,guu.avatar
+        $sql = "SELECT gm.say_type,gm.content,gm.uid,gm.addtime,guu.group_nick as nick,guu.nickname as name,guu.avatar
         FROM im_group_message gm
         INNER JOIN (SELECT gu.uid,gu.group_nick,u.nickname,u.avatar FROM im_group_user gu INNER JOIN im_users u ON gu.group_id={$group_id} and gu.uid=u.id ) guu
-        ON gm.addtime>{$beforeTime} and gm.group_id={$group_id} {$msWhere} and gm.uid=guu.uid
+        ON gm.addtime>{$beforeTime} and gm.group_id={$group_id} {$msWhere} and gm.cancel=0 and gm.uid=guu.uid
         ORDER BY gm.addtime DESC
         LIMIT 0,$limitNum";
 
@@ -620,8 +620,8 @@ class GetLogic extends ApiController
         FROM im_users u
         INNER JOIN im_group_user gu
         ON gu.group_id={$group_id} and u.id=gu.uid
-        ORDER BY gu.rig DESC,gu.addtime
-        LIMIT 0,$num";
+        ORDER BY gu.rig DESC,gu.addtime";
+        //LIMIT 0,$num";
 
         //执行
         $list = Db::query($sql);
