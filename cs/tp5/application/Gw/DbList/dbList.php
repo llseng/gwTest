@@ -283,6 +283,47 @@ return [
 
 	)ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT='系统公告表信息表'",
 
+	/*
+	//删除原有存储过程
+	"drop-user_create_group" => "DROP PROCEDURE IF EXISTS user_create_group",
+	//用户创建群组存储过程
+	"user_create_group" => "CREATE PROCEDURE user_create_group()",
+	*/
+	
+	//删除原有存储过程
+	"drop-user_enter_group" => "DROP PROCEDURE IF EXISTS user_enter_group",
+	//用户进群存储过程
+	"user_enter_group" => "CREATE PROCEDURE user_enter_group(in par_uid int,in par_group_id int,in par_group_nick varchar(32),in par_addtime int,in par_rig tinyint)
+	BEGIN
+		
+		DECLARE err tinyint(1) DEFAULT 0;
+
+		DECLARE par_ms_id int(11) DEFAULT 0;
+
+		DECLARE CONTINUE HANDLER FOR SQLWARNING,NOT FOUND,SQLEXCEPTION SET err = err+1;
+
+		START TRANSACTION;
+
+			update im_add_group set `status`=1,`state`=1 where `status`=0 and `uid`=par_uid and `group_id`=par_group_id;
+
+			insert into im_group_user(`uid`,`group_id`,`group_nick`,`addtime`,`rig`) values(par_uid,par_group_id,par_group_nick,par_addtime,par_rig);
+
+			select max(id) into par_ms_id from im_group_message where `group_id`=par_group_id;
+
+			IF par_ms_id is null or par_ms_id<1 THEN set par_ms_id=0;END IF;
+
+			insert into im_group_message_user(`uid`,`group_id`,`ms_id`) values(par_uid,par_group_id,par_ms_id);
+
+		IF err THEN
+			ROLLBACK;
+		ELSE
+			COMMIT;
+		END IF;
+
+		select err;
+
+	END;",
+
 	//删除原有存储过程
 	"drop-user_delete_friend" => "DROP PROCEDURE IF EXISTS user_delete_friend",
 	//用户删除好友存储过程

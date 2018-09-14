@@ -67,6 +67,27 @@ class SetLogic extends ApiController
         );
     }
 
+    //用户入群
+    public function enterGroup($data)
+    {
+        if(!$data['uid'] || !$data['group_id'] || !$data['group_nick'] || !$data['addtime']) return false;
+
+        $uid = (int)$data['uid']; 
+        $group_id = (int)$data['group_id'];
+        $group_nick = $data['group_nick'];
+        $addtime = (int)$data['addtime'];
+        $rig = (int)$data['rig'];
+
+        $result = Db::query("call user_enter_group({$uid},{$group_id},'{$group_nick}',{$addtime},{$rig})");
+
+        if(!$result) return false;
+
+        if($result[0][0]['err']) return false;
+
+        return true;
+
+    }
+
     //好友所有消息为已读
     public function readFriendMessage($uid,$friend_id)
     {

@@ -514,20 +514,12 @@ class Set extends ApiController
             "group_nick" => $userInfoData["nickname"],
             "addtime" => $_SERVER['REQUEST_TIME']
         ];
-
-        //入群
-        $result = self::setField(
-            $command = "insert",
-            $db = "group_user",
-            $map = '',
-            $param = $userInfo
-        );
-        if(!$result) exit(self::returnError("进群失败"));
-
+        
         //设置逻辑层
         $SetLogic = new SetLogic();
-        //用户添加 群消息关联记录
-        $setGroupReadNews = $SetLogic->setGroupReadNews($userInfoData['uid'],$info['group_id']);
+        //入群方法
+        $enterGroup = $SetLogic->enterGroup($userInfo);
+        if(!$enterGroup) exit(self::returnError("进群失败"));
 
         //用户在线
         if(Gateway::isUidOnline($userInfoData['uid']))
@@ -681,20 +673,12 @@ class Set extends ApiController
                 "group_nick" => $orderInfo["nickname"],
                 "addtime" => $_SERVER['REQUEST_TIME']
             ];
-    
-            //入群
-            $result = self::setField(
-                $command = "insert",
-                $db = "group_user",
-                $map = '',
-                $param = $userInfo
-            );
-            if(!$result) exit(self::returnError("用户进群失败"));
-    
+                
             //设置逻辑层
             $SetLogic = new SetLogic();
-            //用户添加 群消息关联记录
-            $setGroupReadNews = $SetLogic->setGroupReadNews($orderInfo['uid'],$orderInfo['group_id']);
+            //入群方法
+            $enterGroup = $SetLogic->enterGroup($userInfo);
+            if(!$enterGroup) exit(self::returnError("进群失败"));
 
             //用户在线
             if(Gateway::isUidOnline($orderInfo['uid']))
@@ -750,17 +734,16 @@ class Set extends ApiController
 
         //设置逻辑层
         $SetLogic = new SetLogic();
-        //删除与好友的所有关联数据
+        //删除与群组的所有关联数据
         $result = $SetLogic->deleteGroupData($this->uid,$group_id);
 
         if(!$result) exit(self::returnError("操作失败"));
 
         exit(self::returnSuccess([],"操作成功"));
 
-
     }
 
-    //踢出群
+    //踢出群聊
     public function kickOutGroup()
     {
         $post = self::getPost(['member_id','group_id']);
@@ -769,7 +752,47 @@ class Set extends ApiController
         //群组ID
         $group_id = (int)$post['group_id'];
 
-        
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //是否有管理群的权限
+        $ifManageGroupPer = $GetLogic->ifManageGroupPer($this->uid,$group_id);
+
+        if(!$ifManageGroupPer) exit(self::returnError("无管理权限"));
+
+        //成员是否在群聊里
+        $isInGroup = $GetLogic->isInGroup($member_id,$group_id);
+
+        if(!$isInGroup) exit(self::returnError("操作失败，群成员不存在"));
+
+        //设置逻辑层
+        $SetLogic = new SetLogic();
+        //删除与群组的所有关联数据
+        $result = $SetLogic->deleteGroupData($member_id,$group_id);
+
+        if(!$result) exit(self::returnError("操作失败"));
+
+        exit(self::returnSuccess([],"操作成功"));
+    }
+
+    //拉入群聊
+    public function pullInGroup()
+    {
+        $post = self::getPost(['user_id','group_id']);
+
+        $user_id = (int)$post['user_id'];
+        $group_id = (int)$post['group_id'];
+
+        //数据获取逻辑层
+        $GetLogic = new GetLogic();
+        //是否有管理群的权限
+        $ifManageGroupPer = $GetLogic->ifManageGroupPer($this->uid,$group_id);
+
+        if(!$ifManageGroupPer) exit(self::returnError("无管理权限"));
+
+        //成员是否在群聊里
+        $isInGroup = $GetLogic->isInGroup($user_id,$group_id);
+
+        if($isInGroup) exit(self::returnError("操作失败，群成员已存在"));
     }
 
     //上传图片
