@@ -805,6 +805,9 @@ class Set extends ApiController
 
         if(!$isInGroup) exit(self::returnError("操作失败，群成员不存在"));
 
+        //用户是否担任职位
+        if($isInGroup['rig'] != 0) exit(self::returnError("成员正在担任职位,不可删除"));
+
         //设置逻辑层
         $SetLogic = new SetLogic();
         //删除与群组的所有关联数据
@@ -856,6 +859,17 @@ class Set extends ApiController
         $SetLogic = new SetLogic();
         //入群后提示信息
         $SetLogic->addGroupHint($user_id,$group_id);
+
+        //用户在线
+        if(Gateway::isUidOnline($user_id))
+        {
+            //用户绑定 Group/群组
+            $SetLogic->bindGroup($user_id,$group_id);
+            //消息推送  
+            Gateway::sendToUid($user_id,self::returnSuccess(SayLogic::sayData("add_group",[
+                ["group_id"=>$group_id,"group_name"=>$ifManageGroupPer['group_name'],"group_nick"=>$userInfoData["nickname"]]
+            ]),"您已加入群聊"));
+        }
 
         exit(self::returnSuccess([],"操作成功"));
         

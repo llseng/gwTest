@@ -80,7 +80,7 @@ class GetLogic extends ApiController
         */
 
         $sql = "SELECT a.id,a.uid,a.to_uid,a.content,a.type_id as say_type,a.status as state,a.addtime,a.nickname as name,a.avatar,f.name as mark,f.class_id,f.top 
-        FROM (SELECT l.*,u.nickname,u.avatar FROM (SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and uid={$uid} and cancel=0 UNION ALL SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and to_uid={$uid} and cancel=0) l LEFT JOIN im_users u ON u.id=l.mid-{$uid} ORDER BY l.status DESC,l.addtime DESC) a 
+        FROM (SELECT l.*,u.nickname,u.avatar FROM (SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and uid={$uid} and cancel=0 UNION ALL SELECT *,uid+to_uid as mid FROM im_message WHERE addtime>{$beforeTime} and to_uid={$uid} and type_id!=2 and cancel=0) l LEFT JOIN im_users u ON u.id=l.mid-{$uid} ORDER BY l.status DESC,l.addtime DESC) a 
         LEFT JOIN im_friend f
         ON f.uid={$uid} and a.uid=f.friend_id
         GROUP BY a.mid";
@@ -270,7 +270,7 @@ class GetLogic extends ApiController
 
         $sqlUnion = "SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$uid} and uid={$friend_id} and cancel=0
         UNION ALL
-        SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$friend_id} and uid={$uid} and cancel=0";
+        SELECT * FROM im_message WHERE addtime>{$beforeTime} {$msWhere} and to_uid={$friend_id} and uid={$uid} and type_id!=2 and cancel=0";
 
         $sql = "SELECT a.*,a.type_id as type,a.type_id as say_type,a.status as state
         FROM ( {$sqlUnion} ) a
@@ -594,7 +594,7 @@ class GetLogic extends ApiController
                 "uid" => $uid,
                 "group_id" => $group_id
             ],
-            $param = "uid,group_id,group_nick,addtime"
+            $param = "uid,group_id,group_nick,addtime,rig"
         );
     }
 
