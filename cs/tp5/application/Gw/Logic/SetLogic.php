@@ -154,6 +154,19 @@ class SetLogic extends ApiController
         return true;
     }
 
+    //群主删除群 并且 任命下一任群主
+    public function hostDeleteGroup($uid,$group_id,$member_id)
+    {
+        //执行存储过程
+        $result = Db::query("call host_delete_group({$uid},{$group_id},{$member_id})");
+
+        if(!$result) return false;
+
+        if($result[0][0]['err']) return false;
+
+        return true;
+    }
+
     //
     public function deleteGroupDataAll($group_id)
     {

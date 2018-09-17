@@ -725,9 +725,9 @@ class Set extends ApiController
     //退出群组
     public function deleteGroup()
     {
-        die("API CLOSE");
+        
         $post = self::getPost(['group_id']);
-
+        
         $group_id = (int)$post['group_id'];
 
         //成员ID
@@ -770,10 +770,8 @@ class Set extends ApiController
                     $member_id = $groupUserList[0]['uid'];
                 }
 
-                //$res = Db::execute("UPDATE im_group g inner join im_group_user gu on  g.group_id=gu.group_id");
-
-                //删除用户与群组的所有关联数据
-                $result = $SetLogic->deleteGroupData($this->uid,$group_id);
+                //删除用户与群组的所有关联数据 并且 任命下一任群主
+                $result = $SetLogic->hostDeleteGroup($this->uid,$group_id,$member_id);
             }
         }else{
             //删除用户与群组的所有关联数据

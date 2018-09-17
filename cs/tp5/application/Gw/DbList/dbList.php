@@ -407,6 +407,38 @@ return [
 		select err;
 
 	END;",
+
+	//删除原有存储过程
+	"drop-host_delete_group" => "DROP PROCEDURE IF EXISTS host_delete_group",
+	//群主退群 并 任命 群主
+	"host_delete_group" => "CREATE PROCEDURE host_delete_group(in par_uid int,in par_group_id int,in par_member_id int)
+	BEGIN
+
+		DECLARE err tinyint(1) DEFAULT 0;
+
+		DECLARE CONTINUE HANDLER FOR SQLWARNING,NOT FOUND,SQLEXCEPTION SET err = 1;
+
+		START TRANSACTION;
+
+		update im_group_user set rig=0 where `group_id`=par_group_id and rig=2;
+
+		update im_group g inner join im_group_user gu on g.group_id=par_group_id and g.group_id=gu.group_id and gu.uid=par_member_id set g.add_uid=par_member_id,gu.rig=2;
+
+		delete from im_group_user where `uid`=par_uid and `group_id`=par_group_id;
+
+		delete from im_group_message_user where `uid`=par_uid and `group_id`=par_group_id;
+
+		update im_group_message set cancel=1 where `uid`=par_uid and `group_id`=par_group_id;
+
+		IF err THEN
+			ROLLBACK;
+		ELSE
+			COMMIT;
+		END IF;
+
+		select err;
+
+	END;",
 	
 ];
 
